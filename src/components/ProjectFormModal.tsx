@@ -90,13 +90,13 @@ export default function ProjectFormModal({ open, onClose, project }: ProjectForm
     >
       <form id="project-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
         <Field label="Project name" htmlFor="project-name">
-          <input id="project-name" name="name" className="swag-input" defaultValue={project?.name ?? ""} placeholder="Alder Ridge driveway" required />
+          <input id="project-name" name="name" className="swag-input" defaultValue={project?.name ?? ""} placeholder="Project Name" required />
         </Field>
         <Field label="Location" htmlFor="project-location">
-          <input id="project-location" name="location" className="swag-input" defaultValue={project?.location ?? ""} placeholder="Sector 42, Gurugram" required />
+          <input id="project-location" name="location" className="swag-input" defaultValue={project?.location ?? ""} placeholder="Location" required />
         </Field>
         <Field label="Client (optional)" htmlFor="project-client">
-          <input id="project-client" name="client" className="swag-input" defaultValue={project?.client ?? ""} placeholder="R. Malhotra" />
+          <input id="project-client" name="client" className="swag-input" defaultValue={project?.client ?? ""} placeholder="Client Name" />
         </Field>
         <Field label="Status" htmlFor="project-status">
           <select id="project-status" name="status" className="swag-input swag-select" defaultValue={project?.status ?? "ongoing"}>
