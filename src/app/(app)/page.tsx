@@ -10,9 +10,14 @@ import TrendChart from "@/components/TrendChart";
 import { getDashboardData, listRecentTransactions } from "@/lib/queries";
 import { formatPercent } from "@/lib/format";
 
-export default function DashboardPage() {
-  const { projects, totalIncome, totalExpense, totalProfit, monthly } = getDashboardData();
-  const recent = listRecentTransactions(4);
+// This reads live financial data that changes via the API routes (create/edit/
+// delete project or transaction) — it must never be statically cached, or
+// visitors would see a frozen snapshot from build time.
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const { projects, totalIncome, totalExpense, totalProfit, monthly } = await getDashboardData();
+  const recent = await listRecentTransactions(4);
   const ranked = [...projects].sort((a, b) => b.profit - a.profit);
   const ongoing = projects.filter((p) => p.status === "ongoing").length;
 
@@ -60,7 +65,7 @@ export default function DashboardPage() {
 
       <DashboardActions />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--sp-4)" }}>
+      <div className="swag-stat-grid">
         <StatCard label="Income" value={totalIncome} kind="income" icon="arrow-down-left" caption="All time" />
         <StatCard label="Expense" value={totalExpense} kind="expense" icon="arrow-up-right" caption="All time" />
         <StatCard label="Margin" value={totalProfit} kind="profit" icon="percent" caption={`${formatPercent(totalProfit, totalIncome)} of income`} />

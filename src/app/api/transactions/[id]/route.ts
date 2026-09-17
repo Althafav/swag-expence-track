@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const tx = updateTransaction(id, {
+  const tx = await updateTransaction(id, {
     type: body.type,
     amount: Number(body.amount),
     date: body.date,
@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ok = deleteTransaction(id);
+  const ok = await deleteTransaction(id);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

@@ -125,7 +125,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </header>
 
-        <main style={{ flex: 1, padding: "var(--sp-5) var(--gutter-app) 96px" }}>
+        <main className="swag-shell-main">
           <div style={{ maxWidth: "var(--container-max)", margin: "0 auto" }}>{children}</div>
         </main>
 

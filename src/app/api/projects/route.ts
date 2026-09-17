@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { createProject, listProjects } from "@/lib/queries";
 
 export async function GET() {
-  return NextResponse.json(listProjects());
+  return NextResponse.json(await listProjects());
 }
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Name and location are required" }, { status: 400 });
   }
 
-  const project = createProject({
+  const project = await createProject({
     name: body.name,
     location: body.location,
     client: body.client ?? null,

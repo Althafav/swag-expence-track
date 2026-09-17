@@ -11,10 +11,10 @@ export async function GET(request: NextRequest) {
   const projectId = request.nextUrl.searchParams.get("projectId");
   if (!projectId) return NextResponse.json({ error: "projectId is required" }, { status: 400 });
 
-  const project = getProject(projectId);
+  const project = await getProject(projectId);
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const transactions = listTransactions(projectId);
+  const transactions = await listTransactions(projectId);
   const header = ["Date", "Type", "Category", "Amount", "Notes"];
   const rows = transactions.map((t) => [formatDate(t.date), t.type, t.category, String(t.amount), t.notes || ""]);
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");

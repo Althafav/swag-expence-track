@@ -81,7 +81,7 @@ export default function ProjectDetailClient({ project, transactions }: ProjectDe
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--sp-4)" }}>
+      <div className="swag-stat-grid">
         <StatCard
           label="Income"
           value={income}

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { db, Project, Transaction } from "./db";
+import { supabase, Project, Transaction } from "./db";
 
 export type ProjectWithTotals = Project & {
   income: number;
@@ -7,47 +7,56 @@ export type ProjectWithTotals = Project & {
   profit: number;
 };
 
-export function listProjects(): ProjectWithTotals[] {
-  const projects = db.prepare(`SELECT * FROM projects ORDER BY createdAt DESC`).all() as Project[];
-  const totals = db
-    .prepare(`SELECT projectId, type, SUM(amount) as total FROM transactions GROUP BY projectId, type`)
-    .all() as { projectId: string; type: string; total: number }[];
+type TxTotal = Pick<Transaction, "projectId" | "type" | "amount">;
 
-  return projects.map((p) => {
-    const income = totals.find((t) => t.projectId === p.id && t.type === "income")?.total ?? 0;
-    const expense = totals.find((t) => t.projectId === p.id && t.type === "expense")?.total ?? 0;
+function sumBy(transactions: TxTotal[], projectId: string, type: "income" | "expense"): number {
+  return transactions.filter((t) => t.projectId === projectId && t.type === type).reduce((s, t) => s + t.amount, 0);
+}
+
+export async function listProjects(): Promise<ProjectWithTotals[]> {
+  const [{ data: projects, error: projectsError }, { data: transactions, error: txError }] = await Promise.all([
+    supabase.from("projects").select("*").order("createdAt", { ascending: false }),
+    supabase.from("transactions").select("projectId, type, amount"),
+  ]);
+  if (projectsError) throw projectsError;
+  if (txError) throw txError;
+
+  return (projects ?? []).map((p) => {
+    const income = sumBy(transactions ?? [], p.id, "income");
+    const expense = sumBy(transactions ?? [], p.id, "expense");
     return { ...p, income, expense, profit: income - expense };
   });
 }
 
-export function getProject(id: string): Project | undefined {
-  return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(id) as Project | undefined;
+export async function getProject(id: string): Promise<Project | undefined> {
+  const { data, error } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ?? undefined;
 }
 
-export function createProject(input: {
+export async function createProject(input: {
   name: string;
   location: string;
   client?: string | null;
   status?: string;
   startDate?: string | null;
   notes?: string | null;
-}) {
+}): Promise<Project | undefined> {
   const id = randomUUID();
-  db.prepare(
-    `INSERT INTO projects (id, name, location, client, status, startDate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
+  const { error } = await supabase.from("projects").insert({
     id,
-    input.name,
-    input.location,
-    input.client ?? null,
-    input.status ?? "ongoing",
-    input.startDate ?? null,
-    input.notes ?? null
-  );
+    name: input.name,
+    location: input.location,
+    client: input.client ?? null,
+    status: input.status ?? "ongoing",
+    startDate: input.startDate ?? null,
+    notes: input.notes ?? null,
+  });
+  if (error) throw error;
   return getProject(id);
 }
 
-export function updateProject(
+export async function updateProject(
   id: string,
   input: Partial<{
     name: string;
@@ -57,85 +66,118 @@ export function updateProject(
     startDate: string | null;
     notes: string | null;
   }>
-) {
-  const existing = getProject(id);
+): Promise<Project | undefined> {
+  const existing = await getProject(id);
   if (!existing) return undefined;
   const merged = { ...existing, ...input };
-  db.prepare(
-    `UPDATE projects SET name=?, location=?, client=?, status=?, startDate=?, notes=? WHERE id=?`
-  ).run(merged.name, merged.location, merged.client, merged.status, merged.startDate, merged.notes, id);
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      name: merged.name,
+      location: merged.location,
+      client: merged.client,
+      status: merged.status,
+      startDate: merged.startDate,
+      notes: merged.notes,
+    })
+    .eq("id", id);
+  if (error) throw error;
   return getProject(id);
 }
 
-// Explicit cascading delete, belt-and-braces alongside the schema's own
-// ON DELETE CASCADE + PRAGMA foreign_keys — deleting a project must never
-// leave orphaned transactions skewing dashboard totals.
-const deleteProjectCascade = db.transaction((id: string) => {
-  db.prepare(`DELETE FROM transactions WHERE projectId = ?`).run(id);
-  return db.prepare(`DELETE FROM projects WHERE id = ?`).run(id);
-});
-
-export function deleteProject(id: string): boolean {
-  const result = deleteProjectCascade(id);
-  return result.changes > 0;
+// Postgres's own ON DELETE CASCADE (schema FK) handles removing the project's
+// transactions atomically as part of this single statement — unlike the old
+// SQLite version, no separate explicit-cascade step is needed or easily
+// achievable over PostgREST's one-statement-per-call model.
+export async function deleteProject(id: string): Promise<boolean> {
+  const { error, count } = await supabase.from("projects").delete({ count: "exact" }).eq("id", id);
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }
 
-export function listTransactions(projectId: string): Transaction[] {
-  return db
-    .prepare(`SELECT * FROM transactions WHERE projectId = ? ORDER BY date DESC, createdAt DESC`)
-    .all(projectId) as Transaction[];
+export async function listTransactions(projectId: string): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("projectId", projectId)
+    .order("date", { ascending: false })
+    .order("createdAt", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export type RecentTransaction = Transaction & { projectName: string };
 
-export function listRecentTransactions(limit: number): RecentTransaction[] {
-  return db
-    .prepare(
-      `SELECT t.*, p.name as projectName
-       FROM transactions t
-       JOIN projects p ON p.id = t.projectId
-       ORDER BY t.date DESC, t.createdAt DESC
-       LIMIT ?`
-    )
-    .all(limit) as RecentTransaction[];
+export async function listRecentTransactions(limit: number): Promise<RecentTransaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*, projects(name)")
+    .order("date", { ascending: false })
+    .order("createdAt", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const { projects, ...tx } = row as Transaction & { projects: { name: string } | null };
+    return { ...tx, projectName: projects?.name ?? "" };
+  });
 }
 
-export function createTransaction(input: {
+export async function createTransaction(input: {
   projectId: string;
   type: string;
   amount: number;
   date: string;
   category: string;
   notes?: string | null;
-}): Transaction {
+}): Promise<Transaction> {
   const id = randomUUID();
-  db.prepare(
-    `INSERT INTO transactions (id, projectId, type, amount, date, category, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.projectId, input.type, input.amount, input.date, input.category, input.notes ?? null);
-  return db.prepare(`SELECT * FROM transactions WHERE id = ?`).get(id) as Transaction;
+  const { error } = await supabase.from("transactions").insert({
+    id,
+    projectId: input.projectId,
+    type: input.type,
+    amount: input.amount,
+    date: input.date,
+    category: input.category,
+    notes: input.notes ?? null,
+  });
+  if (error) throw error;
+
+  const { data, error: getError } = await supabase.from("transactions").select("*").eq("id", id).single();
+  if (getError) throw getError;
+  return data;
 }
 
-export function updateTransaction(
+export async function updateTransaction(
   id: string,
   input: Partial<{ type: string; amount: number; date: string; category: string; notes: string | null }>
-) {
-  const existing = db.prepare(`SELECT * FROM transactions WHERE id = ?`).get(id) as Transaction | undefined;
+): Promise<Transaction | undefined> {
+  const { data: existing, error: getError } = await supabase.from("transactions").select("*").eq("id", id).maybeSingle();
+  if (getError) throw getError;
   if (!existing) return undefined;
+
   const merged = { ...existing, ...input };
-  db.prepare(`UPDATE transactions SET type=?, amount=?, date=?, category=?, notes=? WHERE id=?`).run(
-    merged.type,
-    merged.amount,
-    merged.date,
-    merged.category,
-    merged.notes,
-    id
-  );
-  return db.prepare(`SELECT * FROM transactions WHERE id = ?`).get(id) as Transaction;
+  const { error } = await supabase
+    .from("transactions")
+    .update({
+      type: merged.type,
+      amount: merged.amount,
+      date: merged.date,
+      category: merged.category,
+      notes: merged.notes,
+    })
+    .eq("id", id);
+  if (error) throw error;
+
+  const { data, error: finalError } = await supabase.from("transactions").select("*").eq("id", id).single();
+  if (finalError) throw finalError;
+  return data;
 }
 
-export function deleteTransaction(id: string): boolean {
-  const result = db.prepare(`DELETE FROM transactions WHERE id = ?`).run(id);
-  return result.changes > 0;
+export async function deleteTransaction(id: string): Promise<boolean> {
+  const { error, count } = await supabase.from("transactions").delete({ count: "exact" }).eq("id", id);
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }
 
 export interface MonthlyPoint {
@@ -144,27 +186,25 @@ export interface MonthlyPoint {
   expense: number;
 }
 
-function monthlyTrend(where: string, params: unknown[]): MonthlyPoint[] {
-  const rows = db
-    .prepare(
-      `SELECT strftime('%Y-%m', date) as month, type, SUM(amount) as total
-       FROM transactions ${where}
-       GROUP BY month, type ORDER BY month ASC`
-    )
-    .all(...params) as { month: string; type: string; total: number }[];
+async function monthlyTrend(projectId?: string): Promise<MonthlyPoint[]> {
+  let query = supabase.from("transactions").select("date, type, amount");
+  if (projectId) query = query.eq("projectId", projectId);
+  const { data, error } = await query;
+  if (error) throw error;
 
   const map = new Map<string, MonthlyPoint>();
-  for (const row of rows) {
-    if (!map.has(row.month)) map.set(row.month, { month: row.month, income: 0, expense: 0 });
-    const entry = map.get(row.month)!;
-    if (row.type === "income") entry.income = row.total;
-    else entry.expense = row.total;
+  for (const row of data ?? []) {
+    const month = row.date.slice(0, 7); // "YYYY-MM" from the stored "YYYY-MM-DD"
+    if (!map.has(month)) map.set(month, { month, income: 0, expense: 0 });
+    const entry = map.get(month)!;
+    if (row.type === "income") entry.income += row.amount;
+    else entry.expense += row.amount;
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
-export function getDashboardData() {
-  const projects = listProjects();
+export async function getDashboardData() {
+  const projects = await listProjects();
   const totalIncome = projects.reduce((s, p) => s + p.income, 0);
   const totalExpense = projects.reduce((s, p) => s + p.expense, 0);
 
@@ -173,10 +213,10 @@ export function getDashboardData() {
     totalIncome,
     totalExpense,
     totalProfit: totalIncome - totalExpense,
-    monthly: monthlyTrend("", []),
+    monthly: await monthlyTrend(),
   };
 }
 
-export function getProjectMonthly(projectId: string): MonthlyPoint[] {
-  return monthlyTrend("WHERE projectId = ?", [projectId]);
+export async function getProjectMonthly(projectId: string): Promise<MonthlyPoint[]> {
+  return monthlyTrend(projectId);
 }

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const tx = createTransaction({
+  const tx = await createTransaction({
     projectId: body.projectId,
     type: body.type,
     amount: Number(body.amount),

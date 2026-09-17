@@ -4,7 +4,6 @@
 // does nothing if the database already has projects.
 import { fileURLToPath } from "url";
 import { parse, format } from "date-fns";
-import { db } from "./db";
 import { createProject, createTransaction, listProjects } from "./queries";
 
 function iso(displayDate: string): string {
@@ -93,41 +92,41 @@ const TRANSACTIONS: Record<
   ],
 };
 
-export function seed() {
-  if (listProjects().length > 0) {
+export async function seed() {
+  if ((await listProjects()).length > 0) {
     console.log("Database already has projects — skipping seed.");
     return;
   }
 
-  const seedInsert = db.transaction(() => {
-    for (const p of PROJECTS) {
-      const created = createProject({
-        name: p.name,
-        location: p.location,
-        client: p.client,
-        status: p.status,
-        startDate: iso(p.start),
-        notes: p.notes || null,
+  for (const p of PROJECTS) {
+    const created = await createProject({
+      name: p.name,
+      location: p.location,
+      client: p.client,
+      status: p.status,
+      startDate: iso(p.start),
+      notes: p.notes || null,
+    });
+    if (!created) throw new Error(`Failed to create project ${p.name}`);
+
+    for (const t of TRANSACTIONS[p.key]) {
+      await createTransaction({
+        projectId: created.id,
+        type: t.type,
+        amount: t.amount,
+        date: iso(t.date),
+        category: t.category,
+        notes: t.notes || null,
       });
-      if (!created) throw new Error(`Failed to create project ${p.name}`);
-
-      for (const t of TRANSACTIONS[p.key]) {
-        createTransaction({
-          projectId: created.id,
-          type: t.type,
-          amount: t.amount,
-          date: iso(t.date),
-          category: t.category,
-          notes: t.notes || null,
-        });
-      }
     }
-  });
+  }
 
-  seedInsert();
   console.log(`Seeded ${PROJECTS.length} projects.`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  seed();
+  seed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 }

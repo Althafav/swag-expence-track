@@ -125,7 +125,11 @@
   --fs-32: 32px;
   --fs-40: 40px;
   --fs-52: 52px;
-  --fs-68: 68px;
+  /* Fluid, not a fixed 68px — the dashboard's business-wide net profit is a
+     single nowrap Anton figure, and a growing business's total will
+     eventually run wider than a phone screen at a fixed size. Reaches full
+     68px once the viewport matches the app's one breakpoint (~756px). */
+  --fs-68: clamp(34px, 9vw, 68px);
 
   --lh-tight: 0.96;
   --lh-snug: 1.12;
@@ -354,6 +358,15 @@ button { font-family: inherit; }
 .swag-seg__item:hover { color: var(--text-strong); }
 .swag-seg__item--active { background: var(--surface-card); color: var(--text-strong); box-shadow: var(--sh-2); }
 
+/* Below 720px, segments scroll horizontally at their natural width instead of
+   squeezing labels to fit — the scrollbar is hidden since the pill shape and
+   edge clipping already signal there's more to swipe to. */
+@media (max-width: 719px) {
+  .swag-seg { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .swag-seg::-webkit-scrollbar { display: none; }
+  .swag-seg__item { flex: 0 0 auto; white-space: nowrap; }
+}
+
 /* Input / Select */
 .swag-field { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
 .swag-field__label { font: var(--type-eyebrow); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--text-muted); }
@@ -411,10 +424,32 @@ button { font-family: inherit; }
   .swag-modal { border-radius: var(--r-card); }
 }
 
+/* App shell main — 152px bottom clearance on phones: the FAB sits at
+   bottom:78px and is 56px tall (top edge at 134px from the viewport
+   bottom), on top of the 70px bottom nav. The old flat 96px let the FAB
+   cover the last ~40px of scrolled content (e.g. the Projects list's net
+   total line, or a project's last transaction row). Desktop has neither
+   the FAB nor the bottom nav, so it only needs normal breathing room. */
+.swag-shell-main { flex: 1; padding: var(--sp-5) var(--gutter-app) 152px; }
+@media (min-width: 720px) {
+  .swag-shell-main { padding-bottom: var(--sp-8); }
+}
+
 /* StatCard */
 .swag-stat { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-card); padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-2); box-shadow: var(--sh-card); }
 .swag-stat--income { border-left: 4px solid var(--income); }
 .swag-stat--expense { border-left: 4px solid var(--expense); }
+
+/* StatCard grid (Income / Expense / Profit-Margin) — auto-fit's minmax(160px)
+   only fits 2 columns between ~364-719px, orphaning the 3rd card alone on a
+   half-empty row. Below 720px, go 2-up and let the last card (always the
+   derived profit/margin figure — the headline number) take the full width
+   of its own row instead of sitting stranded next to empty space. */
+.swag-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-4); }
+@media (max-width: 719px) {
+  .swag-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .swag-stat-grid > :last-child { grid-column: 1 / -1; }
+}
 
 /* ProjectRow / TransactionRow */
 .swag-prow { display: flex; align-items: stretch; gap: 0; width: 100%; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-card-inner); overflow: hidden; cursor: pointer; text-align: left; font-family: inherit; transition: var(--t-control); padding: 0; text-decoration: none; color: inherit; }
