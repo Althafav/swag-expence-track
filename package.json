@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx --env-file=.env.local src/lib/seed.ts",
+    "icons:generate": "tsx scripts/generate-icons.tsx",
     "test": "vitest run"
   },
   "dependencies": {

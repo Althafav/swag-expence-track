@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, MapPin, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Download, MapPin } from "lucide-react";
 import Badge from "./ui/Badge";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
@@ -104,26 +104,6 @@ export default function ProjectDetailClient({ project, transactions }: ProjectDe
           caption={`${formatPercent(profit, income)} of income`}
         />
       </div>
-
-      {profit < 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--sp-4)",
-            padding: "var(--sp-4) var(--sp-5)",
-            background: "var(--expense-soft)",
-            borderRadius: "var(--r-card-inner)",
-            border: "1px solid var(--clay-500)",
-          }}
-        >
-          <TriangleAlert size={20} style={{ color: "var(--expense)", flexShrink: 0 }} />
-          <span style={{ font: "var(--type-body-sm)", color: "var(--clay-700)" }}>
-            Expenses exceed income by <Money value={Math.abs(profit)} kind="neutral" size="sm" style={{ color: "inherit" }} />. Check for
-            unbilled milestones before the next payout.
-          </span>
-        </div>
-      )}
 
       {project.notes && (
         <Card padding={16}>

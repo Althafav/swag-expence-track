@@ -370,7 +370,10 @@ button { font-family: inherit; }
 /* Input / Select */
 .swag-field { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
 .swag-field__label { font: var(--type-eyebrow); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--text-muted); }
-.swag-input { min-height: var(--tap-field); padding: 0 var(--sp-5); border-radius: var(--r-control); border: 1px solid var(--border-default); background: var(--surface-card); font: var(--type-body); color: var(--text-strong); transition: var(--t-control); width: 100%; }
+/* font-size pinned to 16px (not --type-body's 15px) after the shorthand —
+   iOS Safari auto-zooms the page on focus for any form field under 16px,
+   and that zoom doesn't reliably reset once the field blurs. */
+.swag-input { min-height: var(--tap-field); padding: 0 var(--sp-5); border-radius: var(--r-control); border: 1px solid var(--border-default); background: var(--surface-card); font: var(--type-body); font-size: 16px; color: var(--text-strong); transition: var(--t-control); width: 100%; }
 .swag-input::placeholder { color: var(--text-faint); }
 .swag-input:hover { border-color: var(--n-300); }
 .swag-input:focus { outline: none; border-color: var(--ink-900); box-shadow: var(--ring-focus); }
