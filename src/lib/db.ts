@@ -23,6 +23,8 @@ export interface Project {
   startDate: string | null;
   notes: string | null;
   createdAt: string;
+  /** Set while the project is in the recycle bin; null when live. */
+  deletedAt: string | null;
 }
 
 export interface Transaction {
@@ -34,4 +36,6 @@ export interface Transaction {
   category: string;
   notes: string | null;
   createdAt: string;
+  /** Set while the transaction is in the recycle bin; null when live. */
+  deletedAt: string | null;
 }

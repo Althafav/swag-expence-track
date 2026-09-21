@@ -1,8 +1,8 @@
 import React from "react";
-import { FolderOpen, SearchX, Receipt, AlertCircle } from "lucide-react";
+import { FolderOpen, SearchX, Receipt, Trash2, AlertCircle } from "lucide-react";
 
 export interface EmptyStateProps {
-  icon?: "folder-open" | "search-x" | "receipt" | React.ReactNode;
+  icon?: "folder-open" | "search-x" | "receipt" | "trash" | React.ReactNode;
   title: string;
   /** One sentence saying what to do next. */
   body?: string;
@@ -22,6 +22,8 @@ function renderIcon(icon: EmptyStateProps["icon"]) {
       return <Receipt size={24} />;
     case "folder-open":
       return <FolderOpen size={24} />;
+    case "trash":
+      return <Trash2 size={24} />;
     default:
       return <AlertCircle size={24} />;
   }

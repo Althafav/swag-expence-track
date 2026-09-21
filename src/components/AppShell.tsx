@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Trash2 } from "lucide-react";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import ActionSheet from "./ui/ActionSheet";
@@ -15,6 +15,7 @@ import type { Project, Transaction } from "@/lib/db";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderOpen },
+  { href: "/bin", label: "Recycle bin", icon: Trash2 },
 ];
 
 type ProjectRef = { id: string; name: string };

@@ -124,7 +124,7 @@ export default function ProjectFormModal({ open, onClose, project }: ProjectForm
 
         {editing && (
           <span style={{ display: "flex", alignItems: "center", gap: 8, font: "var(--type-body-sm)", color: "var(--text-muted)" }}>
-            <Badge tone="warning">Careful</Badge> Deleting a project deletes its transactions too.
+            <Badge tone="warning">Careful</Badge> Deleting moves the project and its transactions to the Recycle bin. You can restore them for 30 days.
           </span>
         )}
       </form>
