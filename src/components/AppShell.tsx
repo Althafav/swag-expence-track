@@ -84,7 +84,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <Link href="/"  style={{ display: "flex", alignItems: "center" }}>
-            <Image className="bg-white" src="/swag-logo.png" alt="SWAG Landscapes" width={120} height={32} style={{ height: 26, width: "auto" }} priority />
+            <Image className="bg-white" src="/swag-logo.png" alt="SWAG Landscapes" width={140} height={44} style={{ height: 44, width: "auto" }} priority />
           </Link>
 
           <nav className="hidden md:flex" style={{ gap: "var(--sp-2)", flex: 1 }}>
