@@ -152,12 +152,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onLogTransaction={() => modals.openLogTransaction()}
         onNewProject={modals.openNewProject}
       />
-      <TransactionFormModal
-        open={sheet?.kind === "tx"}
-        onClose={closeSheet}
-        project={sheet?.kind === "tx" ? sheet.project : undefined}
-        tx={sheet?.kind === "tx" ? sheet.tx : undefined}
-      />
+      {/* Mounted only while open, so each open starts with fresh form state (type, error). */}
+      {sheet?.kind === "tx" && <TransactionFormModal open onClose={closeSheet} project={sheet.project} tx={sheet.tx} />}
       <ProjectFormModal
         open={sheet?.kind === "project"}
         onClose={closeSheet}
