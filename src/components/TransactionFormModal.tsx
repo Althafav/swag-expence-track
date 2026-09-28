@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import Field from "./ui/Field";
@@ -23,7 +24,8 @@ interface ProjectOption {
   name: string;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Local calendar date — toISOString() is UTC, which is still "yesterday" in India until 5:30 AM.
+const today = () => format(new Date(), "yyyy-MM-dd");
 
 export default function TransactionFormModal({ open, onClose, project, tx }: TransactionFormModalProps) {
   const router = useRouter();
@@ -34,12 +36,6 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setType(tx?.type === "income" ? "Income" : "Expense");
-    setError("");
-  }, [open, tx]);
 
   useEffect(() => {
     if (!open || project) return;
@@ -178,7 +174,7 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
         {error && <span style={{ font: "var(--type-body-sm)", color: "var(--expense)" }}>{error}</span>}
 
         <span style={{ font: "var(--type-body-sm)", color: "var(--text-muted)" }}>
-          Saved against {project ? project.name : "the selected project"} and added to this month's trend.
+          Saved against {project ? project.name : "the selected project"} and added to this month&apos;s trend.
         </span>
       </form>
     </Modal>
