@@ -446,6 +446,15 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
 .swag-modal__body { padding: var(--sp-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-5); }
 .swag-modal__foot { display: flex; gap: var(--sp-3); padding: var(--sp-5) var(--sp-6); border-top: 1px solid var(--border-hairline); align-items: center; }
 @keyframes swag-modal-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* Phones: three uppercase nowrap buttons (Delete / Cancel / Save changes)
+   don't fit one row at ~360px and pushed the primary off-screen. Wrap the
+   row and give the primary action (always last, per Modal's contract) its
+   own full-width line at the bottom, under the thumb. Secondary actions
+   share the line above. Also clear the iOS home indicator on the sheet. */
+@media (max-width: 719.98px) {
+  .swag-modal__foot { flex-wrap: wrap; row-gap: var(--sp-2); padding-bottom: max(var(--sp-5), env(safe-area-inset-bottom)); }
+  .swag-modal__foot > .swag-btn:last-child { flex: 1 0 100%; max-width: none; }
+}
 @media (min-width: 720px) {
   .swag-scrim { align-items: center; padding: var(--sp-8); }
   .swag-modal { border-radius: var(--r-card); }
