@@ -36,6 +36,7 @@ const PROJECTS = [
     client: "Birchwood Dental",
     status: "completed",
     start: "02 Jun 2026",
+    end: "14 Jul 2026",
     notes: "Wall cladding stone, front elevation.",
   },
   {
@@ -54,6 +55,7 @@ const PROJECTS = [
     client: "S. Iyer",
     status: "completed",
     start: "11 May 2026",
+    end: "26 Jun 2026",
     notes: "",
   },
 ] as const;
@@ -105,6 +107,7 @@ export async function seed() {
       client: p.client,
       status: p.status,
       startDate: iso(p.start),
+      completedDate: "end" in p ? iso(p.end) : null,
       notes: p.notes || null,
     });
     if (!created) throw new Error(`Failed to create project ${p.name}`);

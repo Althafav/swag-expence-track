@@ -35,6 +35,8 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Delete is two-step: the first tap only swaps the footer to a confirm row.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -45,7 +47,10 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
       .catch(() => setProjects([]));
   }, [open, project]);
 
-  const categories = type === "Income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const categories: readonly string[] = type === "Income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  // After switching Expense↔Income the old category isn't in the new list; an
+  // unmatched defaultValue makes the browser silently pick the first option.
+  const defaultCategory = tx && categories.includes(tx.category) ? tx.category : "";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,25 +70,37 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
 
     setSaving(true);
     const payload = { projectId, type: type === "Income" ? "income" : "expense", amount, category, date, notes: notes || null };
-    const res = await fetch(editing ? `/api/transactions/${tx!.id}` : "/api/transactions", {
-      method: editing ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setSaving(false);
-
-    if (!res.ok) return setError("Could not save. Try again.");
+    // try/finally: a dropped connection rejects fetch outright, and without it
+    // the button would stay stuck on "Saving…" with no error shown.
+    try {
+      const res = await fetch(editing ? `/api/transactions/${tx!.id}` : "/api/transactions", {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) return setError("Could not save. Try again.");
+    } catch {
+      return setError("No connection — not saved. Try again.");
+    } finally {
+      setSaving(false);
+    }
     router.refresh();
     onClose();
   }
 
   async function handleDelete() {
     if (!tx) return;
+    setError("");
     setDeleting(true);
-    const res = await fetch(`/api/transactions/${tx.id}`, { method: "DELETE" });
-    setDeleting(false);
-
-    if (!res.ok) return setError("Could not delete. Try again.");
+    try {
+      const res = await fetch(`/api/transactions/${tx.id}`, { method: "DELETE" });
+      if (!res.ok) return setError("Could not delete. Try again.");
+    } catch {
+      return setError("No connection — not deleted. Try again.");
+    } finally {
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
     router.refresh();
     onClose();
   }
@@ -95,20 +112,34 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
       title={editing ? "Edit transaction" : "Log transaction"}
       subtitle={project ? project.name : "Pick a project below"}
       footer={
-        <>
-          {editing && (
-            <Button variant="ghost" type="button" onClick={handleDelete} disabled={deleting} style={{ color: "var(--expense)" }}>
+        confirmingDelete ? (
+          <>
+            <span style={{ flex: 1, font: "var(--type-body-sm)", color: "var(--text-strong)" }}>
+              Move this transaction to the Recycle bin?
+            </span>
+            <Button variant="ghost" type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
+              Keep
+            </Button>
+            <Button variant="danger" type="button" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Deleting…" : "Delete"}
             </Button>
-          )}
-          <span style={{ flex: 1 }} />
-          <Button variant="ghost" type="button" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" form="tx-form" disabled={saving}>
-            {saving ? "Saving…" : editing ? "Save changes" : "Save"}
-          </Button>
-        </>
+          </>
+        ) : (
+          <>
+            {editing && (
+              <Button variant="ghost" type="button" onClick={() => setConfirmingDelete(true)} style={{ color: "var(--expense)" }}>
+                Delete
+              </Button>
+            )}
+            <span style={{ flex: 1 }} />
+            <Button variant="ghost" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" form="tx-form" disabled={saving}>
+              {saving ? "Saving…" : editing ? "Save changes" : "Save"}
+            </Button>
+          </>
+        )
       }
     >
       <form id="tx-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
@@ -145,7 +176,7 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
         )}
 
         <Field label="Category" htmlFor="tx-category">
-          <select id="tx-category" name="category" className="swag-input swag-select" defaultValue={tx?.category ?? ""} key={type} required>
+          <select id="tx-category" name="category" className="swag-input swag-select" defaultValue={defaultCategory} key={type} required>
             <option value="" disabled>
               Choose a category
             </option>

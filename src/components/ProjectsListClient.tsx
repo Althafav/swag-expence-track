@@ -58,12 +58,25 @@ export default function ProjectsListClient({ projects }: ProjectsListClientProps
 
       <SegmentedControl options={FILTERS} value={status} onChange={setStatus} />
 
-      {list.length === 0 ? (
+      {projects.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="folder-open"
+            title="No projects yet"
+            body="Create your first project to start logging income and expenses against it."
+            action={
+              <Button variant="primary" iconLeft="folder-plus" onClick={openNewProject}>
+                New project
+              </Button>
+            }
+          />
+        </Card>
+      ) : list.length === 0 ? (
         <Card>
           <EmptyState
             icon="search-x"
             title="No projects match"
-            body={`Nothing for "${q}". Clear the search or change the status filter.`}
+            body={q ? `Nothing for "${q}". Clear the search or change the status filter.` : "No projects with this status."}
             action={
               <Button variant="outline" onClick={clearFilters}>
                 Clear filters

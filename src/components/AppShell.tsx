@@ -154,11 +154,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       />
       {/* Mounted only while open, so each open starts with fresh form state (type, error). */}
       {sheet?.kind === "tx" && <TransactionFormModal open onClose={closeSheet} project={sheet.project} tx={sheet.tx} />}
-      <ProjectFormModal
-        open={sheet?.kind === "project"}
-        onClose={closeSheet}
-        project={sheet?.kind === "project" ? sheet.project : undefined}
-      />
+      {/* Mounted only while open (like TransactionFormModal) so form state —
+          e.g. the controlled status that reveals "Completed date" — starts
+          fresh from the project on every open. */}
+      {sheet?.kind === "project" && <ProjectFormModal open onClose={closeSheet} project={sheet.project} />}
     </TrackerModalsContext.Provider>
   );
 }

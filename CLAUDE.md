@@ -12,6 +12,13 @@ Full product spec: `Project_Summary.md`. (An `Implementation_Plan.md` with build
 
 Design source of truth (a separate, sibling directory, read-only): `../SWAG Landscapes Design System/` — `readme.md` for foundations (color/type/spacing rules, the profit-color rule), `components/*/*.jsx` + `.d.ts` + `.prompt.md` for the authoritative per-component contract, `ui_kits/profit-tracker/screens.jsx` + `modals.jsx` + `data.js` for reference screen markup and the seed dataset. This app is a from-scratch TypeScript/Next.js port of that kit — not a copy-paste, but every component's prop shape and visual behavior should trace back to it.
 
+## ⚠️ Production database — data safety rule
+
+The Supabase database `.env.local` points at is **production** with real business data. When testing:
+- **Never delete, edit or purge existing (real) projects or transactions.**
+- If a test needs data, **create new test records with a clear reference** (e.g. name/notes prefixed `[TEST]`) and only ever delete those specific records afterwards.
+- **Never delete anything from the Recycle bin** (no "Delete forever", no "Empty bin", no `DELETE /api/bin...`), and don't trigger anything that purges bin contents — real deleted items there must stay restorable.
+
 ## Commands
 
 ```bash

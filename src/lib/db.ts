@@ -21,6 +21,8 @@ export interface Project {
   client: string | null;
   status: "ongoing" | "completed" | "on_hold";
   startDate: string | null;
+  /** Day the job finished; set only while status is "completed". */
+  completedDate: string | null;
   notes: string | null;
   createdAt: string;
   /** Set while the project is in the recycle bin; null when live. */

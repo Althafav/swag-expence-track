@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     client: body.client ?? null,
     status: body.status || "ongoing",
     startDate: body.startDate ?? null,
+    completedDate: body.completedDate ?? null,
     notes: body.notes ?? null,
   });
   return NextResponse.json(project, { status: 201 });

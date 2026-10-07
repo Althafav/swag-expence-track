@@ -16,8 +16,10 @@ import { formatPercent } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { projects, totalIncome, totalExpense, totalProfit, monthly } = await getDashboardData();
-  const recent = await listRecentTransactions(4);
+  const [{ projects, totalIncome, totalExpense, totalProfit, monthly }, recent] = await Promise.all([
+    getDashboardData(),
+    listRecentTransactions(4),
+  ]);
   const ranked = [...projects].sort((a, b) => b.profit - a.profit);
   const ongoing = projects.filter((p) => p.status === "ongoing").length;
 
@@ -92,7 +94,15 @@ export default async function DashboardPage() {
 
       <Card padding={0}>
         <div style={{ padding: "var(--sp-5) var(--sp-5) 0" }}>
-          <SectionHead title="Recent activity" eyebrow="Across projects" />
+          <SectionHead
+            title="Recent activity"
+            eyebrow="Across projects"
+            action={
+              <Link href="/activity" style={{ display: "inline-flex", alignItems: "center", gap: 6, font: "var(--type-label)", color: "var(--text-muted)" }}>
+                Show all
+              </Link>
+            }
+          />
         </div>
         <div style={{ padding: "var(--sp-2) var(--sp-5) var(--sp-4)" }}>
           {recent.map((tx) => (

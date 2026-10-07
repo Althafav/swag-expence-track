@@ -67,6 +67,7 @@ export default function ProjectDetailClient({ project, transactions }: ProjectDe
             {project.location}
             {project.client && <span>· {project.client}</span>}
             {project.startDate && <span>· started {formatDate(project.startDate)}</span>}
+            {project.completedDate && <span>· completed {formatDate(project.completedDate)}</span>}
           </span>
         </div>
 

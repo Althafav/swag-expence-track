@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { deleteTransaction, updateTransaction } from "@/lib/queries";
+import { parseTransaction } from "@/lib/validate";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  if (!body?.type || !body?.amount || !body?.date || !body?.category) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+  const parsed = parseTransaction(body);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const tx = await updateTransaction(id, {
-    type: body.type,
-    amount: Number(body.amount),
-    date: body.date,
-    category: body.category,
-    notes: body.notes ?? null,
-  });
+  const tx = await updateTransaction(id, parsed.value);
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(tx);
 }

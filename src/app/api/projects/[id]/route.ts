@@ -17,6 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     client: body.client ?? null,
     status: body.status,
     startDate: body.startDate ?? null,
+    completedDate: body.completedDate ?? null,
     notes: body.notes ?? null,
   });
   return NextResponse.json(project);
