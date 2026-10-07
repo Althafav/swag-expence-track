@@ -9,6 +9,7 @@ import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import ActionSheet from "./ui/ActionSheet";
 import TransactionFormModal from "./TransactionFormModal";
+import TransactionViewModal from "./TransactionViewModal";
 import ProjectFormModal from "./ProjectFormModal";
 import type { Project, Transaction } from "@/lib/db";
 
@@ -24,11 +25,14 @@ type SheetState =
   | null
   | { kind: "actionsheet" }
   | { kind: "tx"; project?: ProjectRef; tx?: Transaction }
+  | { kind: "tx-view"; project: ProjectRef; tx: Transaction }
   | { kind: "project"; project?: Project };
 
 interface TrackerModalsContextValue {
   openActionSheet: () => void;
   openLogTransaction: (project?: ProjectRef) => void;
+  /** Read-only view; its Edit button hands off to openEditTransaction. */
+  openViewTransaction: (tx: Transaction, project: ProjectRef) => void;
   openEditTransaction: (tx: Transaction, project: ProjectRef) => void;
   openNewProject: () => void;
   openEditProject: (project: Project) => void;
@@ -61,6 +65,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const modals: TrackerModalsContextValue = {
     openActionSheet: () => setSheet({ kind: "actionsheet" }),
     openLogTransaction: (project) => setSheet({ kind: "tx", project }),
+    openViewTransaction: (tx, project) => setSheet({ kind: "tx-view", project, tx }),
     openEditTransaction: (tx, project) => setSheet({ kind: "tx", project, tx }),
     openNewProject: () => setSheet({ kind: "project" }),
     openEditProject: (project) => setSheet({ kind: "project", project }),
@@ -152,6 +157,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onLogTransaction={() => modals.openLogTransaction()}
         onNewProject={modals.openNewProject}
       />
+      {sheet?.kind === "tx-view" && (
+        <TransactionViewModal
+          open
+          onClose={closeSheet}
+          onEdit={() => modals.openEditTransaction(sheet.tx, sheet.project)}
+          tx={sheet.tx}
+          project={sheet.project}
+        />
+      )}
       {/* Mounted only while open, so each open starts with fresh form state (type, error). */}
       {sheet?.kind === "tx" && <TransactionFormModal open onClose={closeSheet} project={sheet.project} tx={sheet.tx} />}
       {/* Mounted only while open (like TransactionFormModal) so form state —

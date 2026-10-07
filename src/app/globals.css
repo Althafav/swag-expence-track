@@ -500,3 +500,19 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
 .swag-pass { display: flex; gap: var(--sp-3); justify-content: center; }
 .swag-pass__cell { width: 44px; height: 56px; border-radius: var(--r-control); border: 1px solid var(--border-on-dark); background: rgba(255, 255, 255, .06); color: var(--text-on-dark); font: var(--type-figure-sm); display: flex; align-items: center; justify-content: center; }
 .swag-pass__cell--filled { background: var(--lime-400); color: var(--ink); border-color: var(--lime-400); }
+
+/* Project detail — two-card row (category donut + trend), stacked on phones */
+.swag-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-5); }
+@media (min-width: 720px) {
+  .swag-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* Margin bar — share of income spent (clay) vs kept (moss); all clay on a loss */
+.swag-margin { display: flex; height: 12px; border-radius: var(--r-pill); overflow: hidden; background: var(--ink-700); }
+.swag-margin__seg { height: 100%; }
+
+/* Category legend line — doubles as a filter toggle */
+.swag-legend { display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: 40px; padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--r-sm); background: transparent; font-family: inherit; text-align: left; cursor: pointer; color: inherit; transition: background-color var(--dur-fast) var(--ease-standard); }
+.swag-legend:hover { background: var(--n-25); }
+.swag-legend[aria-pressed="true"] { background: var(--surface-sunken); }
+.swag-legend:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }

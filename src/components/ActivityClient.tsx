@@ -21,7 +21,7 @@ export interface ActivityClientProps {
 
 /** Every transaction across all live projects — the dashboard's "Recent activity" in full. */
 export default function ActivityClient({ transactions }: ActivityClientProps) {
-  const { openLogTransaction, openEditTransaction } = useTrackerModals();
+  const { openLogTransaction, openViewTransaction } = useTrackerModals();
   const [filter, setFilter] = useState("All");
 
   const shown =
@@ -80,7 +80,7 @@ export default function ActivityClient({ transactions }: ActivityClientProps) {
                 key={tx.id}
                 tx={tx}
                 showProject
-                onClick={() => openEditTransaction(tx, { id: tx.projectId, name: tx.projectName })}
+                onClick={() => openViewTransaction(tx, { id: tx.projectId, name: tx.projectName })}
               />
             ))
           )}
