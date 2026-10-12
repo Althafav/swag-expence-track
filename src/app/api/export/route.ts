@@ -50,13 +50,18 @@ async function exportProject(projectId: string) {
 }
 
 // Whole-business export: one CSV with two sections — a per-project accounts
-// summary (with a totals row), then every live transaction across live projects.
+// summary (plus a company-expenses row and a totals row), then every live
+// transaction across live projects and company entries.
 async function exportAll() {
   const [projects, transactions] = await Promise.all([listProjects(), listAllTransactions()]);
   const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
 
-  const totalIncome = sorted.reduce((s, p) => s + p.income, 0);
-  const totalExpense = sorted.reduce((s, p) => s + p.expense, 0);
+  const company = transactions.filter((t) => t.projectId === null);
+  const companyIncome = company.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const companyExpense = company.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+
+  const totalIncome = sorted.reduce((s, p) => s + p.income, 0) + companyIncome;
+  const totalExpense = sorted.reduce((s, p) => s + p.expense, 0) + companyExpense;
   const margin = (profit: number, income: number) => (income > 0 ? `${Math.round((profit / income) * 100)}%` : "");
 
   const summary: string[][] = [
@@ -75,6 +80,19 @@ async function exportAll() {
       String(p.profit),
       margin(p.profit, p.income),
     ]),
+    [
+      "Company expenses (no project)",
+      "",
+      "",
+      "",
+      "",
+      "",
+      String(company.length),
+      String(companyIncome),
+      String(companyExpense),
+      String(companyIncome - companyExpense),
+      "",
+    ],
     [
       "TOTAL",
       "",

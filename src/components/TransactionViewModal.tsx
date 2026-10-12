@@ -15,7 +15,7 @@ export interface TransactionViewModalProps {
   /** Swaps this sheet for the edit form (AppShell owns the hand-off). */
   onEdit: () => void;
   tx: Transaction;
-  project: { id: string; name: string };
+  project: { id: string | null; name: string };
 }
 
 /**

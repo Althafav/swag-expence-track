@@ -26,6 +26,18 @@ const CATEGORY_COLOR: Record<string, string> = {
   "Milestone payment": "var(--moss)",
   "Final payment": "var(--lime-700)",
   Other: "var(--n-300)",
+  // Company entries (no project) — only ever charted together on /company.
+  Salaries: "var(--ink-700)",
+  "Office rent": "var(--clay-700)",
+  Marketing: "var(--amber-500)",
+  "Phone & internet": "var(--sky-500)",
+  "Vehicle & fuel": "var(--n-600)",
+  Software: "var(--moss-700)",
+  "Accountant / legal fees": "var(--clay)",
+  "Bank charges": "var(--lime-700)",
+  "Office supplies": "var(--moss)",
+  "Bank interest": "var(--moss-700)",
+  "Equipment sale": "var(--moss)",
 };
 const FALLBACK_COLOR = "var(--n-400)";
 

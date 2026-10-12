@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Trash2 } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Building2, Trash2 } from "lucide-react";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import ActionSheet from "./ui/ActionSheet";
@@ -12,14 +12,19 @@ import TransactionFormModal from "./TransactionFormModal";
 import TransactionViewModal from "./TransactionViewModal";
 import ProjectFormModal from "./ProjectFormModal";
 import type { Project, Transaction } from "@/lib/db";
+import { COMPANY_LABEL } from "@/lib/categories";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderOpen },
+  { href: "/company", label: "Company", icon: Building2 },
   { href: "/bin", label: "Recycle bin", icon: Trash2 },
 ];
 
-type ProjectRef = { id: string; name: string };
+/** A project, or COMPANY_REF (id null) for a company entry that belongs to no project. */
+export type ProjectRef = { id: string | null; name: string };
+
+export const COMPANY_REF: ProjectRef = { id: null, name: COMPANY_LABEL };
 
 type SheetState =
   | null
@@ -155,6 +160,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         open={sheet?.kind === "actionsheet"}
         onClose={closeSheet}
         onLogTransaction={() => modals.openLogTransaction()}
+        onCompanyExpense={() => modals.openLogTransaction(COMPANY_REF)}
         onNewProject={modals.openNewProject}
       />
       {sheet?.kind === "tx-view" && (

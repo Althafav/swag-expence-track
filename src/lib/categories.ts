@@ -16,3 +16,21 @@ export const EXPENSE_CATEGORIES = [
   "Subcontractor",
   "Misc",
 ] as const;
+
+// Company entries — money for the whole business, not one project (projectId NULL).
+export const COMPANY_LABEL = "Company";
+
+export const COMPANY_EXPENSE_CATEGORIES = [
+  "Salaries",
+  "Office rent",
+  "Marketing",
+  "Phone & internet",
+  "Vehicle & fuel",
+  "Software",
+  "Accountant / legal fees",
+  "Bank charges",
+  "Office supplies",
+  "Other",
+] as const;
+
+export const COMPANY_INCOME_CATEGORIES = ["Bank interest", "Equipment sale", "Other"] as const;

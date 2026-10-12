@@ -2,12 +2,15 @@
 
 import React from "react";
 import Modal from "./Modal";
+import { Building2 } from "lucide-react";
 import Button from "./Button";
 
 export interface ActionSheetProps {
   open: boolean;
   onClose: () => void;
   onLogTransaction: () => void;
+  /** Log a company expense — salary, marketing, rent: money for no one project. */
+  onCompanyExpense: () => void;
   onNewProject: () => void;
 }
 
@@ -17,7 +20,7 @@ export interface ActionSheetProps {
  * entry point into logging a transaction (FAB, dashboard primary button)
  * opens this same sheet — never a second, divergent path.
  */
-export default function ActionSheet({ open, onClose, onLogTransaction, onNewProject }: ActionSheetProps) {
+export default function ActionSheet({ open, onClose, onLogTransaction, onCompanyExpense, onNewProject }: ActionSheetProps) {
   return (
     <Modal
       open={open}
@@ -47,6 +50,18 @@ export default function ActionSheet({ open, onClose, onLogTransaction, onNewProj
           variant="outline"
           block
           size="lg"
+          iconLeft={<Building2 size={16} />}
+          onClick={() => {
+            onClose();
+            onCompanyExpense();
+          }}
+        >
+          Company expense
+        </Button>
+        <Button
+          variant="outline"
+          block
+          size="lg"
           iconLeft="folder-plus"
           onClick={() => {
             onClose();
@@ -56,7 +71,7 @@ export default function ActionSheet({ open, onClose, onLogTransaction, onNewProj
           New project
         </Button>
         <span style={{ font: "var(--type-body-sm)", color: "var(--text-muted)", textAlign: "center", marginTop: 4 }}>
-          Logging a payment or expense is the everyday action — creating a project is setup.
+          Company expense is for costs that aren’t for one project — salaries, marketing, rent.
         </span>
       </div>
     </Modal>

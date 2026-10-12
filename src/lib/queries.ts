@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase, Project, Transaction } from "./db";
 import { retentionCutoff } from "./bin";
+import { COMPANY_LABEL } from "./categories";
 
 export type ProjectWithTotals = Project & {
   income: number;
@@ -13,6 +14,11 @@ export type ProjectWithTotals = Project & {
 // a timestamp = in the recycle bin (see src/lib/bin.ts and /bin). Every read of
 // live data below filters `deletedAt IS NULL`, and reads that span projects also
 // exclude transactions whose project is binned. Any NEW read must do the same.
+//
+// COMPANY ENTRIES: a transaction with "projectId" NULL belongs to the whole
+// business (salary, marketing, rent). `projects!inner(...)` joins skip those rows,
+// so project-scoped reads never see them; whole-business reads add them on
+// explicitly with `.is("projectId", null)` (see listCompanyTransactions).
 
 type TxTotal = Pick<Transaction, "projectId" | "type" | "amount">;
 
@@ -156,21 +162,7 @@ export async function listTransactions(projectId: string): Promise<Transaction[]
 export type RecentTransaction = Transaction & { projectName: string };
 
 export async function listRecentTransactions(limit: number): Promise<RecentTransaction[]> {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*, projects!inner(name)")
-    .is("deletedAt", null)
-    .is("projects.deletedAt", null)
-    .order("date", { ascending: false })
-    .order("createdAt", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return (data ?? []).map(withProjectName);
-}
-
-// Every live transaction across live projects, newest first — the "All activity" page.
-export async function listAllTransactions(): Promise<RecentTransaction[]> {
-  const rows = await fetchAll((from, to) =>
+  const [{ data, error }, { data: company, error: companyError }] = await Promise.all([
     supabase
       .from("transactions")
       .select("*, projects!inner(name)")
@@ -178,19 +170,68 @@ export async function listAllTransactions(): Promise<RecentTransaction[]> {
       .is("projects.deletedAt", null)
       .order("date", { ascending: false })
       .order("createdAt", { ascending: false })
+      .limit(limit),
+    supabase
+      .from("transactions")
+      .select("*")
+      .is("projectId", null)
+      .is("deletedAt", null)
+      .order("date", { ascending: false })
+      .order("createdAt", { ascending: false })
+      .limit(limit),
+  ]);
+  if (error) throw error;
+  if (companyError) throw companyError;
+  return [...(data ?? []), ...(company ?? [])].map(withProjectName).sort(newestFirst).slice(0, limit);
+}
+
+// Every live transaction — across live projects plus company entries — newest
+// first. The "All activity" page and the whole-business export.
+export async function listAllTransactions(): Promise<RecentTransaction[]> {
+  const [rows, company] = await Promise.all([
+    fetchAll((from, to) =>
+      supabase
+        .from("transactions")
+        .select("*, projects!inner(name)")
+        .is("deletedAt", null)
+        .is("projects.deletedAt", null)
+        .order("date", { ascending: false })
+        .order("createdAt", { ascending: false })
+        .order("id")
+        .range(from, to)
+    ),
+    listCompanyTransactions(),
+  ]);
+  return [...rows, ...company].map(withProjectName).sort(newestFirst);
+}
+
+/** Live company entries (no project), newest first. */
+export async function listCompanyTransactions(): Promise<Transaction[]> {
+  return fetchAll<Transaction>((from, to) =>
+    supabase
+      .from("transactions")
+      .select("*")
+      .is("projectId", null)
+      .is("deletedAt", null)
+      .order("date", { ascending: false })
+      .order("createdAt", { ascending: false })
       .order("id")
       .range(from, to)
   );
-  return rows.map(withProjectName);
+}
+
+function newestFirst(a: Transaction, b: Transaction): number {
+  return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
 }
 
 function withProjectName(row: unknown): RecentTransaction {
-  const { projects, ...tx } = row as Transaction & { projects: { name: string } | null };
-  return { ...tx, projectName: projects?.name ?? "" };
+  const { projects, ...tx } = row as Transaction & { projects?: { name: string } | null };
+  return { ...tx, projectName: tx.projectId === null ? COMPANY_LABEL : projects?.name ?? "" };
 }
 
 export async function createTransaction(input: {
-  projectId: string;
+  /** Null for a company entry. */
+  projectId: string | null;
   type: string;
   amount: number;
   date: string;
@@ -257,17 +298,32 @@ export interface MonthlyPoint {
   expense: number;
 }
 
+// With a projectId: that project only. Without: the whole business — every live
+// project plus company entries.
 async function monthlyTrend(projectId?: string): Promise<MonthlyPoint[]> {
-  const rows = await fetchAll<Pick<Transaction, "date" | "type" | "amount">>((from, to) => {
-    let query = supabase
-      .from("transactions")
-      .select("date, type, amount, projects!inner(deletedAt)")
-      .is("deletedAt", null)
-      .is("projects.deletedAt", null);
-    if (projectId) query = query.eq("projectId", projectId);
-    return query.order("id").range(from, to);
-  });
+  const [rows, company] = await Promise.all([
+    fetchAll<MonthlyRow>((from, to) => {
+      let query = supabase
+        .from("transactions")
+        .select("date, type, amount, projects!inner(deletedAt)")
+        .is("deletedAt", null)
+        .is("projects.deletedAt", null);
+      if (projectId) query = query.eq("projectId", projectId);
+      return query.order("id").range(from, to);
+    }),
+    projectId
+      ? Promise.resolve<MonthlyRow[]>([])
+      : fetchAll<MonthlyRow>((from, to) =>
+          supabase.from("transactions").select("date, type, amount").is("projectId", null).is("deletedAt", null).order("id").range(from, to)
+        ),
+  ]);
+  return toMonthly([...rows, ...company]);
+}
 
+type MonthlyRow = Pick<Transaction, "date" | "type" | "amount">;
+
+/** Groups rows into income/expense per "YYYY-MM", oldest month first. */
+export function toMonthly(rows: MonthlyRow[]): MonthlyPoint[] {
   const map = new Map<string, MonthlyPoint>();
   for (const row of rows) {
     const month = row.date.slice(0, 7); // "YYYY-MM" from the stored "YYYY-MM-DD"
@@ -280,14 +336,23 @@ async function monthlyTrend(projectId?: string): Promise<MonthlyPoint[]> {
 }
 
 export async function getDashboardData() {
-  const [projects, monthly] = await Promise.all([listProjects(), monthlyTrend()]);
-  const totalIncome = projects.reduce((s, p) => s + p.income, 0);
-  const totalExpense = projects.reduce((s, p) => s + p.expense, 0);
+  const [projects, monthly, company] = await Promise.all([listProjects(), monthlyTrend(), listCompanyTransactions()]);
+  const projectIncome = projects.reduce((s, p) => s + p.income, 0);
+  const projectExpense = projects.reduce((s, p) => s + p.expense, 0);
+  const companyIncome = company.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const companyExpense = company.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const totalIncome = projectIncome + companyIncome;
+  const totalExpense = projectExpense + companyExpense;
 
   return {
     projects,
+    /** Profit from projects alone, before company entries. */
+    projectProfit: projectIncome - projectExpense,
+    companyIncome,
+    companyExpense,
     totalIncome,
     totalExpense,
+    /** Real business profit: projects plus company entries. */
     totalProfit: totalIncome - totalExpense,
     monthly,
   };
@@ -313,7 +378,11 @@ export type BinTransaction = Transaction & { deletedAt: string; projectName: str
 export async function listBin(): Promise<{ projects: BinProject[]; transactions: BinTransaction[] }> {
   await purgeExpired();
 
-  const [{ data: projects, error: projectsError }, { data: transactions, error: txError }] = await Promise.all([
+  const [
+    { data: projects, error: projectsError },
+    { data: transactions, error: txError },
+    { data: company, error: companyError },
+  ] = await Promise.all([
     supabase.from("projects").select("*").not("deletedAt", "is", null).order("deletedAt", { ascending: false }),
     supabase
       .from("transactions")
@@ -321,14 +390,17 @@ export async function listBin(): Promise<{ projects: BinProject[]; transactions:
       .not("deletedAt", "is", null)
       .is("projects.deletedAt", null)
       .order("deletedAt", { ascending: false }),
+    supabase.from("transactions").select("*").is("projectId", null).not("deletedAt", "is", null).order("deletedAt", { ascending: false }),
   ]);
   if (projectsError) throw projectsError;
   if (txError) throw txError;
+  if (companyError) throw companyError;
 
   const projectIds = (projects ?? []).map((p) => p.id);
   const counts = new Map<string, number>();
   if (projectIds.length > 0) {
-    const inside = await fetchAll<Pick<Transaction, "projectId">>((from, to) =>
+    // Filtered by projectIds, so every row here has a (non-null) project.
+    const inside = await fetchAll<{ projectId: string }>((from, to) =>
       supabase.from("transactions").select("projectId").in("projectId", projectIds).is("deletedAt", null).order("id").range(from, to)
     );
     for (const row of inside) counts.set(row.projectId, (counts.get(row.projectId) ?? 0) + 1);
@@ -336,10 +408,9 @@ export async function listBin(): Promise<{ projects: BinProject[]; transactions:
 
   return {
     projects: (projects ?? []).map((p) => ({ ...p, transactionCount: counts.get(p.id) ?? 0 })),
-    transactions: (transactions ?? []).map((row) => {
-      const { projects: project, ...tx } = row as Transaction & { projects: { name: string } | null };
-      return { ...tx, projectName: project?.name ?? "" } as BinTransaction;
-    }),
+    transactions: [...(transactions ?? []), ...(company ?? [])]
+      .map((row) => withProjectName(row) as BinTransaction)
+      .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),
   };
 }
 
@@ -356,17 +427,18 @@ export async function restoreProject(id: string): Promise<boolean> {
 export type RestoreTransactionResult = "ok" | "not_found" | "project_deleted";
 
 export async function restoreTransaction(id: string): Promise<RestoreTransactionResult> {
+  // Left join (not !inner): a company entry has no project to join.
   const { data, error: getError } = await supabase
     .from("transactions")
-    .select("id, projects!inner(deletedAt)")
+    .select("id, projects(deletedAt)")
     .eq("id", id)
     .not("deletedAt", "is", null)
     .maybeSingle();
   if (getError) throw getError;
   if (!data) return "not_found";
 
-  const project = (data as unknown as { projects: { deletedAt: string | null } }).projects;
-  if (project.deletedAt) return "project_deleted";
+  const project = (data as unknown as { projects: { deletedAt: string | null } | null }).projects;
+  if (project?.deletedAt) return "project_deleted";
 
   const { error } = await supabase.from("transactions").update({ deletedAt: null }).eq("id", id);
   if (error) throw error;

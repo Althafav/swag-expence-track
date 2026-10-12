@@ -16,7 +16,7 @@ import { formatPercent } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [{ projects, totalIncome, totalExpense, totalProfit, monthly }, recent] = await Promise.all([
+  const [{ projects, projectProfit, companyIncome, companyExpense, totalIncome, totalExpense, totalProfit, monthly }, recent] = await Promise.all([
     getDashboardData(),
     listRecentTransactions(4),
   ]);
@@ -40,9 +40,22 @@ export default async function DashboardPage() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-6)", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span className="swag-eyebrow" style={{ color: "var(--text-on-dark-muted)" }}>
-              Net profit · all projects
+              Net profit · whole business
             </span>
             <Money value={totalProfit} kind="on-dark" size="hero" />
+            <span style={{ font: "var(--type-body-sm)", color: "var(--text-on-dark-muted)", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "baseline" }}>
+              Projects <Money value={projectProfit} kind="neutral" size="sm" style={{ font: "inherit", color: "var(--text-on-dark)" }} />
+              <span>·</span>
+              <Link href="/company" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>
+                Company
+              </Link>
+              <Money
+                value={companyIncome - companyExpense}
+                kind="neutral"
+                size="sm"
+                style={{ font: "inherit", color: companyIncome - companyExpense < 0 ? "#F0B8A6" : "var(--text-on-dark)" }}
+              />
+            </span>
             <span style={{ font: "var(--type-body-sm)", color: "var(--text-on-dark-muted)" }}>
               {projects.length} projects · {ongoing} ongoing
             </span>
@@ -96,7 +109,7 @@ export default async function DashboardPage() {
         <div style={{ padding: "var(--sp-5) var(--sp-5) 0" }}>
           <SectionHead
             title="Recent activity"
-            eyebrow="Across projects"
+            eyebrow="Projects & company"
             action={
               <Link href="/activity" style={{ display: "inline-flex", alignItems: "center", gap: 6, font: "var(--type-label)", color: "var(--text-muted)" }}>
                 Show all

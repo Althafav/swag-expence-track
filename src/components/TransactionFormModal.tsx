@@ -7,14 +7,23 @@ import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import Field from "./ui/Field";
 import SegmentedControl from "./ui/SegmentedControl";
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/categories";
+import {
+  INCOME_CATEGORIES,
+  EXPENSE_CATEGORIES,
+  COMPANY_INCOME_CATEGORIES,
+  COMPANY_EXPENSE_CATEGORIES,
+  COMPANY_LABEL,
+} from "@/lib/categories";
 import type { Transaction } from "@/lib/db";
 
 export interface TransactionFormModalProps {
   open: boolean;
   onClose: () => void;
-  /** Preselected project — omitted when opened from a global entry point (FAB, dashboard). */
-  project?: { id: string; name: string };
+  /**
+   * Preselected project — omitted when opened from a global entry point (FAB,
+   * dashboard). An id of null means a company entry (salary, marketing, ...).
+   */
+  project?: { id: string | null; name: string };
   /** Present when editing an existing transaction. */
   tx?: Transaction;
 }
@@ -23,6 +32,9 @@ interface ProjectOption {
   id: string;
   name: string;
 }
+
+/** Picker value for "no project — a company entry". Never a real project id (those are UUIDs). */
+const COMPANY_OPTION = "company";
 
 // Local calendar date — toISOString() is UTC, which is still "yesterday" in India until 5:30 AM.
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -33,6 +45,8 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
 
   const [type, setType] = useState<"Expense" | "Income">(tx?.type === "income" ? "Income" : "Expense");
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  // Only used when no project is preset: the picker's value, which also decides the category list.
+  const [picked, setPicked] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Delete is two-step: the first tap only swaps the footer to a confirm row.
@@ -47,7 +61,14 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
       .catch(() => setProjects([]));
   }, [open, project]);
 
-  const categories: readonly string[] = type === "Income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const isCompany = project ? project.id === null : picked === COMPANY_OPTION;
+  const categories: readonly string[] = isCompany
+    ? type === "Income"
+      ? COMPANY_INCOME_CATEGORIES
+      : COMPANY_EXPENSE_CATEGORIES
+    : type === "Income"
+    ? INCOME_CATEGORIES
+    : EXPENSE_CATEGORIES;
   // After switching Expense↔Income the old category isn't in the new list; an
   // unmatched defaultValue makes the browser silently pick the first option.
   const defaultCategory = tx && categories.includes(tx.category) ? tx.category : "";
@@ -58,12 +79,12 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
 
     const form = new FormData(e.currentTarget);
     const amount = Number(form.get("amount"));
-    const projectId = project?.id ?? String(form.get("projectId") || "");
+    const projectId = isCompany ? null : project?.id ?? picked;
     const category = String(form.get("category") || "");
     const date = String(form.get("date") || "");
     const notes = String(form.get("notes") || "").trim();
 
-    if (!projectId) return setError("Pick a project.");
+    if (!isCompany && !projectId) return setError("Pick a project, or Company.");
     if (!amount || amount <= 0) return setError("Enter a valid amount.");
     if (!category) return setError("Pick a category.");
     if (!date) return setError("Pick a date.");
@@ -109,8 +130,8 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? "Edit transaction" : "Log transaction"}
-      subtitle={project ? project.name : "Pick a project below"}
+      title={editing ? "Edit transaction" : project?.id === null ? "Company expense" : "Log transaction"}
+      subtitle={project ? (isCompany ? "Not for any one project" : project.name) : "Pick a project below"}
       footer={
         confirmingDelete ? (
           <>
@@ -162,10 +183,18 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
 
         {!project && (
           <Field label="Project" htmlFor="tx-project">
-            <select id="tx-project" name="projectId" className="swag-input swag-select" defaultValue={tx?.projectId ?? ""} required>
+            <select
+              id="tx-project"
+              name="projectId"
+              className="swag-input swag-select"
+              value={picked}
+              onChange={(e) => setPicked(e.target.value)}
+              required
+            >
               <option value="" disabled>
                 Choose a project
               </option>
+              <option value={COMPANY_OPTION}>{COMPANY_LABEL} (no project — salary, marketing, rent…)</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -176,7 +205,7 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
         )}
 
         <Field label="Category" htmlFor="tx-category">
-          <select id="tx-category" name="category" className="swag-input swag-select" defaultValue={defaultCategory} key={type} required>
+          <select id="tx-category" name="category" className="swag-input swag-select" defaultValue={defaultCategory} key={`${type}-${isCompany}`} required>
             <option value="" disabled>
               Choose a category
             </option>
@@ -198,14 +227,16 @@ export default function TransactionFormModal({ open, onClose, project, tx }: Tra
             name="notes"
             className="swag-input swag-input--textarea"
             defaultValue={tx?.notes ?? ""}
-            placeholder="300 sq ft, charcoal border"
+            placeholder={isCompany ? "October salary – site supervisor" : "300 sq ft, charcoal border"}
           />
         </Field>
 
         {error && <span style={{ font: "var(--type-body-sm)", color: "var(--expense)" }}>{error}</span>}
 
         <span style={{ font: "var(--type-body-sm)", color: "var(--text-muted)" }}>
-          Saved against {project ? project.name : "the selected project"} and added to this month&apos;s trend.
+          {isCompany
+            ? "Saved as a company entry — it counts toward the business’s total profit, not any project’s."
+            : <>Saved against {project ? project.name : "the selected project"} and added to this month&apos;s trend.</>}
         </span>
       </form>
     </Modal>

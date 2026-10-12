@@ -31,7 +31,8 @@ export interface Project {
 
 export interface Transaction {
   id: string;
-  projectId: string;
+  /** Null for a company entry (salary, marketing, ...) that belongs to no project. */
+  projectId: string | null;
   type: "income" | "expense";
   amount: number;
   date: string;

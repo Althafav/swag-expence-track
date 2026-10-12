@@ -19,7 +19,7 @@ export interface ActivityClientProps {
   transactions: RecentTransaction[];
 }
 
-/** Every transaction across all live projects — the dashboard's "Recent activity" in full. */
+/** Every transaction across live projects and company entries — the dashboard's "Recent activity" in full. */
 export default function ActivityClient({ transactions }: ActivityClientProps) {
   const { openLogTransaction, openViewTransaction } = useTrackerModals();
   const [filter, setFilter] = useState("All");
@@ -49,7 +49,7 @@ export default function ActivityClient({ transactions }: ActivityClientProps) {
           <ArrowLeft size={20} />
         </Link>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span className="swag-eyebrow">Across projects</span>
+          <span className="swag-eyebrow">Projects &amp; company</span>
           <h2 style={{ font: "var(--type-h2)", letterSpacing: "var(--ls-display)", textTransform: "uppercase" }}>All activity</h2>
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function ActivityClient({ transactions }: ActivityClientProps) {
             <EmptyState
               icon="receipt"
               title={`No ${filter.toLowerCase()} entries`}
-              body="Logged transactions from every project show up here."
+              body="Everything you log — for projects or the company — shows up here."
               action={
                 <Button variant="primary" iconLeft="plus" onClick={() => openLogTransaction()}>
                   Log transaction
