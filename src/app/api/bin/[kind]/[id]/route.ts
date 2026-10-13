@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { purgeProject, purgeTransaction, restoreProject, restoreTransaction } from "@/lib/queries";
+import { purgeProject, purgeQuote, purgeTransaction, restoreProject, restoreQuote, restoreTransaction } from "@/lib/queries";
 
 type Params = { params: Promise<{ kind: string; id: string }> };
 
-/** Restore an item from the recycle bin. `kind` is "projects" or "transactions". */
+/** Restore an item from the recycle bin. `kind` is "projects", "transactions" or "quotes". */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { kind, id } = await params;
 
   if (kind === "projects") {
     if (!(await restoreProject(id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (kind === "quotes") {
+    if (!(await restoreQuote(id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   }
 
@@ -29,11 +34,15 @@ export async function POST(_request: NextRequest, { params }: Params) {
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { kind, id } = await params;
 
-  if (kind !== "projects" && kind !== "transactions") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  const purgers: Record<string, (id: string) => Promise<boolean>> = {
+    projects: purgeProject,
+    transactions: purgeTransaction,
+    quotes: purgeQuote,
+  };
+  const purge = Object.hasOwn(purgers, kind) ? purgers[kind] : undefined;
+  if (!purge) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const ok = kind === "projects" ? await purgeProject(id) : await purgeTransaction(id);
+  const ok = await purge(id);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownLeft, ArrowUpRight, FolderOpen, Undo2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, FileText, FolderOpen, Undo2 } from "lucide-react";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 import EmptyState from "./ui/EmptyState";
@@ -11,14 +11,18 @@ import Money from "./ui/Money";
 import SectionHead from "./ui/SectionHead";
 import { RETENTION_DAYS, daysLeft, daysSince } from "@/lib/bin";
 import { formatDate, plural } from "@/lib/format";
-import type { BinProject, BinTransaction } from "@/lib/queries";
+import { computeQuoteTotals } from "@/lib/quote";
+import type { BinProject, BinQuote, BinTransaction } from "@/lib/queries";
 
 export interface RecycleBinClientProps {
   projects: BinProject[];
   transactions: BinTransaction[];
+  quotes: BinQuote[];
 }
 
-type Confirm = { kind: "projects" | "transactions"; id: string; label: string } | { kind: "all" } | null;
+type BinKind = "projects" | "transactions" | "quotes";
+
+type Confirm = { kind: BinKind; id: string; label: string } | { kind: "all" } | null;
 
 function deletedLine(deletedAt: string): string {
   const ago = daysSince(deletedAt);
@@ -62,13 +66,13 @@ function BinRow({ tile, title, meta, note, amount, actions }: BinRowProps) {
   );
 }
 
-export default function RecycleBinClient({ projects, transactions }: RecycleBinClientProps) {
+export default function RecycleBinClient({ projects, transactions, quotes }: RecycleBinClientProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState<Confirm>(null);
 
-  const total = projects.length + transactions.length;
+  const total = projects.length + transactions.length + quotes.length;
 
   async function run(key: string, request: () => Promise<Response>, failure: string) {
     setError("");
@@ -90,7 +94,7 @@ export default function RecycleBinClient({ projects, transactions }: RecycleBinC
     }
   }
 
-  function restore(kind: "projects" | "transactions", id: string) {
+  function restore(kind: BinKind, id: string) {
     return run(`restore:${id}`, () => fetch(`/api/bin/${kind}/${id}`, { method: "POST" }), "Could not restore. Try again.");
   }
 
@@ -123,7 +127,7 @@ export default function RecycleBinClient({ projects, transactions }: RecycleBinC
         <div style={{ flex: "1 1 240px", minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           <h2 style={{ font: "var(--type-h2)", letterSpacing: "var(--ls-display)", textTransform: "uppercase" }}>Recycle bin</h2>
           <span style={{ font: "var(--type-body-sm)", color: "var(--text-muted)" }}>
-            Deleted projects and transactions are kept for {RETENTION_DAYS} days, then removed for good.
+            Deleted projects, transactions and quotes are kept for {RETENTION_DAYS} days, then removed for good.
           </span>
         </div>
         {total > 0 && (
@@ -140,7 +144,7 @@ export default function RecycleBinClient({ projects, transactions }: RecycleBinC
           <EmptyState
             icon="trash"
             title="Recycle bin is empty"
-            body={`Deleted projects and transactions show up here for ${RETENTION_DAYS} days.`}
+            body={`Deleted projects, transactions and quotes show up here for ${RETENTION_DAYS} days.`}
           />
         </Card>
       ) : (
@@ -225,6 +229,42 @@ export default function RecycleBinClient({ projects, transactions }: RecycleBinC
                     />
                   );
                 })}
+              </div>
+            </Card>
+          )}
+
+          {quotes.length > 0 && (
+            <Card padding={0}>
+              <div style={{ padding: "var(--sp-5) var(--sp-5) 0" }}>
+                <SectionHead title={`Quotes (${quotes.length})`} />
+              </div>
+              <div style={{ padding: "0 var(--sp-5)" }}>
+                {quotes.map((q) => (
+                  <BinRow
+                    key={q.id}
+                    tile={<Tile tone="neutral">{<FileText size={18} />}</Tile>}
+                    title={q.clientName}
+                    meta={`${q.number} · ${formatDate(q.date)}${q.site ? ` · ${q.site}` : ""}`}
+                    note={deletedLine(q.deletedAt)}
+                    amount={<Money value={computeQuoteTotals(q.items, q).total} size="sm" />}
+                    actions={
+                      <>
+                        <Button variant="primary" iconLeft={<Undo2 size={16} />} onClick={() => restore("quotes", q.id)} disabled={busy !== null}>
+                          {busy === `restore:${q.id}` ? "Restoring…" : "Restore"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          iconLeft="trash"
+                          style={{ color: "var(--expense)" }}
+                          onClick={() => setConfirm({ kind: "quotes", id: q.id, label: `quote ${q.number}` })}
+                          disabled={busy !== null}
+                        >
+                          Delete forever
+                        </Button>
+                      </>
+                    }
+                  />
+                ))}
               </div>
             </Card>
           )}

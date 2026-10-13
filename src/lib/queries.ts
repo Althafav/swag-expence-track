@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
 import type { PostgrestError } from "@supabase/supabase-js";
-import { supabase, Project, Transaction } from "./db";
+import { supabase, CatalogueItem, Project, Quote, Transaction } from "./db";
 import { retentionCutoff } from "./bin";
 import { COMPANY_LABEL } from "./categories";
+import { nextQuoteNumberFrom } from "./quote";
+import type { CatalogueItemInput, QuoteInput } from "./validate";
 
 export type ProjectWithTotals = Project & {
   income: number;
@@ -363,11 +365,138 @@ export async function getProjectMonthly(projectId: string): Promise<MonthlyPoint
 }
 
 // ---------------------------------------------------------------------------
+// Quotes
+// ---------------------------------------------------------------------------
+
+/** Live quotes, newest first. */
+export async function listQuotes(): Promise<Quote[]> {
+  return fetchAll<Quote>((from, to) =>
+    supabase
+      .from("quotes")
+      .select("*")
+      .is("deletedAt", null)
+      .order("date", { ascending: false })
+      .order("createdAt", { ascending: false })
+      .order("id")
+      .range(from, to)
+  );
+}
+
+export async function getQuote(id: string): Promise<Quote | undefined> {
+  const { data, error } = await supabase.from("quotes").select("*").eq("id", id).is("deletedAt", null).maybeSingle();
+  if (error) throw error;
+  return data ?? undefined;
+}
+
+/**
+ * Next "Q-<year>-NNN" for the current year. Counts binned quotes too, so a
+ * restored quote never collides with a number handed out while it was binned.
+ */
+export async function nextQuoteNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const rows = await fetchAll<{ number: string }>((from, to) =>
+    supabase.from("quotes").select("number").like("number", `Q-${year}-%`).order("id").range(from, to)
+  );
+  return nextQuoteNumberFrom(
+    rows.map((r) => r.number),
+    year
+  );
+}
+
+export async function createQuote(input: QuoteInput): Promise<Quote | undefined> {
+  const id = randomUUID();
+  // The number comes from a read-then-insert, so two saves in the same instant
+  // could pick the same one; the unique constraint catches it and one retry
+  // with a fresh number settles it (single user, so a second clash won't happen).
+  for (let attempt = 0; ; attempt++) {
+    const { error } = await supabase.from("quotes").insert({ id, number: await nextQuoteNumber(), ...input });
+    if (!error) break;
+    if (error.code !== "23505" || attempt > 0) throw error;
+  }
+  return getQuote(id);
+}
+
+export async function updateQuote(id: string, input: Partial<QuoteInput>): Promise<Quote | undefined> {
+  const existing = await getQuote(id);
+  if (!existing) return undefined;
+  const { error } = await supabase.from("quotes").update(input).eq("id", id);
+  if (error) throw error;
+  return getQuote(id);
+}
+
+/** Moves the quote to the recycle bin (see deleteProject). */
+export async function deleteQuote(id: string): Promise<boolean> {
+  const { error, count } = await supabase
+    .from("quotes")
+    .update({ deletedAt: new Date().toISOString() }, { count: "exact" })
+    .eq("id", id)
+    .is("deletedAt", null);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+export type ConvertQuoteResult = { ok: true; projectId: string } | { ok: false; reason: "not_found" | "already_linked" };
+
+/**
+ * Turns an accepted quote into a new ongoing project and links the two. The
+ * link is only written while the quote is still unlinked, so a double tap
+ * can't leave two projects pointing at one quote.
+ */
+export async function convertQuoteToProject(id: string): Promise<ConvertQuoteResult> {
+  const quote = await getQuote(id);
+  if (!quote) return { ok: false, reason: "not_found" };
+  if (quote.projectId && (await getProject(quote.projectId))) return { ok: false, reason: "already_linked" };
+
+  const project = await createProject({
+    name: quote.site ? `${quote.clientName} — ${quote.site}` : quote.clientName,
+    location: quote.site || "—",
+    client: quote.clientName,
+    status: "ongoing",
+    startDate: new Date().toISOString().slice(0, 10),
+    notes: `From quote ${quote.number}`,
+  });
+  if (!project) throw new Error("Project was not created");
+
+  const { error } = await supabase.from("quotes").update({ projectId: project.id, status: "accepted" }).eq("id", id);
+  if (error) throw error;
+  return { ok: true, projectId: project.id };
+}
+
+// ---------------------------------------------------------------------------
+// Quote catalogue — reusable line items. Hard deletes: these are templates,
+// not business records, so they don't go through the recycle bin.
+// ---------------------------------------------------------------------------
+
+export async function listCatalogue(): Promise<CatalogueItem[]> {
+  return fetchAll<CatalogueItem>((from, to) => supabase.from("catalogue_items").select("*").order("name").order("id").range(from, to));
+}
+
+export async function createCatalogueItem(input: CatalogueItemInput): Promise<CatalogueItem> {
+  const id = randomUUID();
+  const { data, error } = await supabase.from("catalogue_items").insert({ id, ...input }).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCatalogueItem(id: string, input: CatalogueItemInput): Promise<CatalogueItem | undefined> {
+  const { data, error } = await supabase.from("catalogue_items").update(input).eq("id", id).select("*").maybeSingle();
+  if (error) throw error;
+  return data ?? undefined;
+}
+
+export async function deleteCatalogueItem(id: string): Promise<boolean> {
+  const { error, count } = await supabase.from("catalogue_items").delete({ count: "exact" }).eq("id", id);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+// ---------------------------------------------------------------------------
 // Recycle bin
 // ---------------------------------------------------------------------------
 
 export type BinProject = Project & { deletedAt: string; transactionCount: number };
 export type BinTransaction = Transaction & { deletedAt: string; projectName: string };
+export type BinQuote = Quote & { deletedAt: string };
 
 /**
  * Everything currently in the bin, newest-deleted first. Purges anything past
@@ -375,13 +504,14 @@ export type BinTransaction = Transaction & { deletedAt: string; projectName: str
  * project is itself binned are intentionally omitted: they ride along with the
  * project and are restored/purged with it.
  */
-export async function listBin(): Promise<{ projects: BinProject[]; transactions: BinTransaction[] }> {
+export async function listBin(): Promise<{ projects: BinProject[]; transactions: BinTransaction[]; quotes: BinQuote[] }> {
   await purgeExpired();
 
   const [
     { data: projects, error: projectsError },
     { data: transactions, error: txError },
     { data: company, error: companyError },
+    { data: quotes, error: quotesError },
   ] = await Promise.all([
     supabase.from("projects").select("*").not("deletedAt", "is", null).order("deletedAt", { ascending: false }),
     supabase
@@ -391,8 +521,10 @@ export async function listBin(): Promise<{ projects: BinProject[]; transactions:
       .is("projects.deletedAt", null)
       .order("deletedAt", { ascending: false }),
     supabase.from("transactions").select("*").is("projectId", null).not("deletedAt", "is", null).order("deletedAt", { ascending: false }),
+    supabase.from("quotes").select("*").not("deletedAt", "is", null).order("deletedAt", { ascending: false }),
   ]);
   if (projectsError) throw projectsError;
+  if (quotesError) throw quotesError;
   if (txError) throw txError;
   if (companyError) throw companyError;
 
@@ -411,12 +543,23 @@ export async function listBin(): Promise<{ projects: BinProject[]; transactions:
     transactions: [...(transactions ?? []), ...(company ?? [])]
       .map((row) => withProjectName(row) as BinTransaction)
       .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),
+    quotes: quotes ?? [],
   };
 }
 
 export async function restoreProject(id: string): Promise<boolean> {
   const { error, count } = await supabase
     .from("projects")
+    .update({ deletedAt: null }, { count: "exact" })
+    .eq("id", id)
+    .not("deletedAt", "is", null);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+export async function restoreQuote(id: string): Promise<boolean> {
+  const { error, count } = await supabase
+    .from("quotes")
     .update({ deletedAt: null }, { count: "exact" })
     .eq("id", id)
     .not("deletedAt", "is", null);
@@ -468,12 +611,24 @@ export async function purgeTransaction(id: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
+export async function purgeQuote(id: string): Promise<boolean> {
+  const { error, count } = await supabase
+    .from("quotes")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .not("deletedAt", "is", null);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 /** Permanently deletes everything in the bin (binned projects take their transactions with them). */
 export async function emptyBin(): Promise<void> {
   const { error: projectsError } = await supabase.from("projects").delete().not("deletedAt", "is", null);
   if (projectsError) throw projectsError;
   const { error: txError } = await supabase.from("transactions").delete().not("deletedAt", "is", null);
   if (txError) throw txError;
+  const { error: quotesError } = await supabase.from("quotes").delete().not("deletedAt", "is", null);
+  if (quotesError) throw quotesError;
 }
 
 /** Hard-deletes bin rows older than the retention window. */
@@ -483,4 +638,6 @@ export async function purgeExpired(): Promise<void> {
   if (projectsError) throw projectsError;
   const { error: txError } = await supabase.from("transactions").delete().lt("deletedAt", cutoff);
   if (txError) throw txError;
+  const { error: quotesError } = await supabase.from("quotes").delete().lt("deletedAt", cutoff);
+  if (quotesError) throw quotesError;
 }

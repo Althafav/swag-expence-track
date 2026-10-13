@@ -5,6 +5,6 @@ import { listBin } from "@/lib/queries";
 export const dynamic = "force-dynamic";
 
 export default async function RecycleBinPage() {
-  const { projects, transactions } = await listBin();
-  return <RecycleBinClient projects={projects} transactions={transactions} />;
+  const { projects, transactions, quotes } = await listBin();
+  return <RecycleBinClient projects={projects} transactions={transactions} quotes={quotes} />;
 }

@@ -2,12 +2,14 @@
 // these are the only checks that hold for any request that reaches the API.
 
 import { STATUS_OPTIONS } from "./status";
-import type { Project, Transaction } from "./db";
+import type { Project, Quote, QuoteItem, QuoteStatus, Transaction } from "./db";
+import { QUOTE_STATUS_OPTIONS } from "./quote";
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const TX_TYPES: readonly Transaction["type"][] = ["income", "expense"];
 const STATUSES: readonly string[] = STATUS_OPTIONS.map((s) => s.value);
+const QUOTE_STATUSES: readonly QuoteStatus[] = QUOTE_STATUS_OPTIONS.map((s) => s.value);
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -86,4 +88,97 @@ export function parseProject(body: unknown): Result<ProjectInput> {
     ok: true,
     value: { name, location, client: optionalText(b.client), status, startDate, notes: optionalText(b.notes) },
   };
+}
+
+function toNumber(value: unknown): number {
+  return typeof value === "string" && value.trim() !== "" ? Number(value) : typeof value === "number" ? value : NaN;
+}
+
+export interface QuoteInput {
+  clientName: string;
+  clientPhone: string | null;
+  site: string | null;
+  date: string;
+  validUntil: string | null;
+  status: QuoteStatus;
+  items: QuoteItem[];
+  discountType: Quote["discountType"];
+  discountValue: number;
+  notes: string | null;
+  terms: string | null;
+}
+
+export function parseQuote(body: unknown): Result<QuoteInput> {
+  const b = (body ?? {}) as Record<string, unknown>;
+
+  const clientName = text(b.clientName);
+  if (!clientName) return { ok: false, error: "Client name is required" };
+
+  if (!isIsoDate(b.date)) return { ok: false, error: "Date must be YYYY-MM-DD" };
+  let validUntil: string | null = null;
+  if (b.validUntil !== undefined && b.validUntil !== null && b.validUntil !== "") {
+    if (!isIsoDate(b.validUntil)) return { ok: false, error: "Valid until must be YYYY-MM-DD" };
+    if (b.validUntil < b.date) return { ok: false, error: "Valid until can't be before the quote date" };
+    validUntil = b.validUntil;
+  }
+
+  const status = (b.status ?? "draft") as QuoteStatus;
+  if (!QUOTE_STATUSES.includes(status)) return { ok: false, error: "Invalid status" };
+
+  if (!Array.isArray(b.items) || b.items.length === 0) return { ok: false, error: "Add at least one item" };
+  const items: QuoteItem[] = [];
+  for (const [i, raw] of b.items.entries()) {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const description = text(r.description);
+    const qty = toNumber(r.qty);
+    const rate = toNumber(r.rate);
+    if (!description) return { ok: false, error: `Item ${i + 1} needs a description` };
+    if (!Number.isFinite(qty) || qty <= 0) return { ok: false, error: `Item ${i + 1} needs a quantity above 0` };
+    if (!Number.isFinite(rate) || rate < 0) return { ok: false, error: `Item ${i + 1} needs a rate of 0 or more` };
+    items.push({ description, qty, unit: text(r.unit), rate });
+  }
+
+  let discountType: Quote["discountType"] = null;
+  let discountValue = 0;
+  if (b.discountType === "flat" || b.discountType === "percent") {
+    discountValue = toNumber(b.discountValue);
+    if (!Number.isFinite(discountValue) || discountValue < 0) return { ok: false, error: "Discount must be 0 or more" };
+    if (b.discountType === "percent" && discountValue > 100) return { ok: false, error: "Discount can't be more than 100%" };
+    discountType = discountValue > 0 ? b.discountType : null;
+    if (!discountType) discountValue = 0;
+  } else if (b.discountType !== undefined && b.discountType !== null && b.discountType !== "") {
+    return { ok: false, error: "Invalid discount type" };
+  }
+
+  return {
+    ok: true,
+    value: {
+      clientName,
+      clientPhone: optionalText(b.clientPhone),
+      site: optionalText(b.site),
+      date: b.date,
+      validUntil,
+      status,
+      items,
+      discountType,
+      discountValue,
+      notes: optionalText(b.notes),
+      terms: optionalText(b.terms),
+    },
+  };
+}
+
+export interface CatalogueItemInput {
+  name: string;
+  unit: string;
+  rate: number;
+}
+
+export function parseCatalogueItem(body: unknown): Result<CatalogueItemInput> {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const name = text(b.name);
+  if (!name) return { ok: false, error: "Name is required" };
+  const rate = toNumber(b.rate);
+  if (!Number.isFinite(rate) || rate < 0) return { ok: false, error: "Rate must be 0 or more" };
+  return { ok: true, value: { name, unit: text(b.unit), rate } };
 }

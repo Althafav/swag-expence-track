@@ -42,3 +42,45 @@ export interface Transaction {
   /** Set while the transaction is in the recycle bin; null when live. */
   deletedAt: string | null;
 }
+
+export type QuoteStatus = "draft" | "sent" | "accepted" | "declined";
+
+/** One line on a quote. Its amount is always derived (qty × rate), never stored. */
+export interface QuoteItem {
+  description: string;
+  qty: number;
+  unit: string;
+  rate: number;
+}
+
+export interface Quote {
+  id: string;
+  /** Human-facing reference printed on the quote, e.g. "Q-2026-014". */
+  number: string;
+  clientName: string;
+  clientPhone: string | null;
+  site: string | null;
+  date: string;
+  validUntil: string | null;
+  status: QuoteStatus;
+  /** Stored as one jsonb column — a quote is always read and saved whole. */
+  items: QuoteItem[];
+  discountType: "flat" | "percent" | null;
+  discountValue: number;
+  notes: string | null;
+  terms: string | null;
+  /** The project this quote turned into, once accepted and converted. */
+  projectId: string | null;
+  createdAt: string;
+  /** Set while the quote is in the recycle bin; null when live. */
+  deletedAt: string | null;
+}
+
+/** A reusable line ("Lawn turfing", sq.ft, ₹45) to drop into quotes. */
+export interface CatalogueItem {
+  id: string;
+  name: string;
+  unit: string;
+  rate: number;
+  createdAt: string;
+}

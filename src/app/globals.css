@@ -516,3 +516,242 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
 .swag-legend:hover { background: var(--n-25); }
 .swag-legend[aria-pressed="true"] { background: var(--surface-sunken); }
 .swag-legend:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* ==================== LogoLoader — "The Mowing Pass" ====================
+   Ghost logo = uncut lawn; .swag-loader__cut reveals the real logo behind a
+   sweeping blade, with ink mow-stripes masked to the letterforms. The pass
+   runs alternate (→ then ←), like a mower working rows. */
+.swag-loader { display: flex; flex-direction: column; align-items: center; gap: var(--sp-5); }
+.swag-loader__lawn { position: relative; aspect-ratio: 880 / 332; }
+.swag-loader__lawn img { display: block; width: 100%; height: auto; }
+.swag-loader__ghost { opacity: .12; filter: grayscale(1); }
+.swag-loader__cut { position: absolute; inset: 0; clip-path: inset(0 100% 0 0); animation: swag-mow-reveal 1.4s var(--ease-standard) infinite alternate; }
+.swag-loader__stripes {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(115deg, rgba(18, 22, 15, .16) 0 9px, transparent 9px 22px);
+  -webkit-mask: url(/swag-logo-cutout.png) center / 100% 100% no-repeat;
+  mask: url(/swag-logo-cutout.png) center / 100% 100% no-repeat;
+  animation: swag-mow-stripes .9s linear infinite;
+}
+.swag-loader__blade {
+  position: absolute;
+  top: -8%;
+  bottom: -8%;
+  left: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  box-shadow: 0 0 0 2px rgba(226, 247, 5, .55), 0 0 18px 4px rgba(226, 247, 5, .7);
+  animation: swag-mow-blade 1.4s var(--ease-standard) infinite alternate;
+}
+.swag-loader__label { margin: 0; font-size: var(--fs-13); }
+.swag-loader__dots span { display: inline-block; animation: swag-loader-dot 1.2s var(--ease-spring) infinite; }
+.swag-loader__dots span:nth-child(2) { animation-delay: .15s; }
+.swag-loader__dots span:nth-child(3) { animation-delay: .3s; }
+
+@keyframes swag-mow-reveal {
+  0%, 8% { clip-path: inset(0 100% 0 0); }
+  92%, 100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes swag-mow-blade {
+  0%, 8% { left: 0; opacity: 0; }
+  14%, 86% { opacity: 1; }
+  92%, 100% { left: 100%; opacity: 0; }
+}
+@keyframes swag-mow-stripes { to { background-position: 48.55px 0; } }
+@keyframes swag-loader-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .35; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swag-loader__cut { clip-path: none; animation: none; }
+  .swag-loader__blade, .swag-loader__stripes { display: none; }
+  .swag-loader__lawn { animation: swag-loader-breathe 2.4s ease-in-out infinite; }
+  .swag-loader__dots span { animation: none; opacity: 1; }
+}
+@keyframes swag-loader-breathe { 50% { opacity: .55; } }
+
+/* ==================== Quotes: editor ==================== */
+
+.qed { display: flex; flex-direction: column; gap: var(--sp-5); }
+.qed__top { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.qed__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); }
+.qed__heading h2 { overflow-wrap: anywhere; }
+.qed__number { font: var(--type-mono); color: var(--text-muted); }
+.qed__section { display: flex; flex-direction: column; gap: var(--sp-5); }
+.qed__section-title { font: var(--type-title); color: var(--text-strong); }
+.qed__items-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-5) var(--sp-5) var(--sp-3); }
+.qed__count { font: var(--type-body-sm); color: var(--text-muted); }
+.qed__lines { list-style: none; margin: 0; padding: 0 var(--sp-5); }
+.qed__add { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.qed__sums { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2) var(--sp-4); margin: 0; padding-top: var(--sp-4); border-top: 1px solid var(--border-hairline); font: var(--type-body-sm); color: var(--text-muted); }
+.qed__sums dd { margin: 0; text-align: right; }
+.qed__project { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); font: var(--type-body-sm); color: var(--text-body); }
+.qed__project > span { flex: 1 1 240px; }
+.qed__danger { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--border-hairline); font: var(--type-body-sm); }
+.qed__danger > span { flex: 1 1 220px; }
+
+/* One quote line. Phones: description on its own row, then qty / unit / rate,
+   then the amount, every field a full 48px tap target. From 720px it lines
+   up as the same five columns the printed table uses. */
+.qed-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  grid-template-areas: "desc desc desc" "qty unit rate" "amount amount actions";
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border-hairline);
+}
+.qed-line:first-child { border-top: 0; }
+.qed-line__desc { grid-area: desc; }
+.qed-line__qty { grid-area: qty; }
+.qed-line__unit { grid-area: unit; }
+.qed-line__rate { grid-area: rate; }
+.qed-line__amount { grid-area: amount; display: flex; align-items: baseline; gap: var(--sp-3); align-self: center; }
+.qed-line__actions { grid-area: actions; display: flex; justify-content: flex-end; gap: var(--sp-1); }
+.qed-line label { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.qed-line__label { font: var(--type-body-sm); color: var(--text-muted); }
+.qed__cols { display: none; }
+.qed__num { text-align: right; }
+
+.qed-icon { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--r-control); background: transparent; color: var(--text-muted); cursor: pointer; transition: var(--t-control); }
+.qed-icon:hover { background: var(--surface-sunken); color: var(--text-strong); }
+.qed-icon:disabled { color: var(--income); cursor: default; background: transparent; }
+.qed-icon:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+@media (min-width: 720px) {
+  .qed__cols, .qed-line { grid-template-columns: minmax(0, 1fr) 84px 104px 120px 120px 92px; grid-template-areas: "desc qty unit rate amount actions"; column-gap: var(--sp-3); }
+  .qed__cols { display: grid; padding: 0 var(--sp-5) var(--sp-2); font: var(--type-body-sm); color: var(--text-muted); border-bottom: 1px solid var(--border-hairline); }
+  .qed-line__label { display: none; }
+  .qed-line__amount { justify-content: flex-end; }
+}
+
+/* Sticky total + save bar. On phones it rides just above the 70px bottom nav
+   (the FAB is hidden on quote screens so it doesn't sit on top of it). */
+.qed-bar {
+  position: sticky;
+  bottom: 78px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--ink);
+  color: var(--text-on-dark);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-sheet);
+}
+.qed-bar__total { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; }
+.qed-bar__total > span:first-child { font: var(--type-body-sm); color: var(--text-on-dark-muted); }
+.qed-bar__total .qed-bar__status { font: var(--type-body-sm); color: var(--text-on-dark-muted); }
+.qed-bar__error { flex: 1 1 100%; order: 3; font: var(--type-body-sm); color: #FFB5A0; }
+.qed-bar__actions { display: flex; gap: var(--sp-3); }
+@media (min-width: 720px) {
+  .qed-bar { bottom: var(--sp-5); }
+}
+
+/* Catalogue page rows and inline form */
+.qcat-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-4) 0; border-bottom: 1px solid var(--border-hairline); }
+.qcat-row:last-child { border-bottom: 0; }
+.qcat-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); width: 100%; }
+.qcat-form__name { grid-column: 1 / -1; }
+.qcat-form__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--sp-3); }
+@media (min-width: 720px) {
+  .qcat-form { grid-template-columns: minmax(0, 1fr) 140px 140px auto; }
+  .qcat-form__name, .qcat-form__actions { grid-column: auto; }
+}
+
+/* ==================== Quotes: printed document ====================
+   A point-for-point copy of SWAG-Landscapes-Quotation-Template.pdf (A4,
+   595.3 × 841.9pt, 50pt side margins). Every offset below is measured from
+   that file, so the comments give the template's position from the page top.
+   The template is set in DejaVu Sans (Regular / Bold / ExtraLight); Inter at
+   400 / 700 / 200 is the closest face the app already ships. */
+
+@page { size: A4; margin: 33.8pt 50pt 47.8pt; }
+
+.qdoc-page { min-height: 100vh; background: var(--paper); padding: var(--sp-5) var(--gutter-app) var(--sp-9); }
+.qdoc-toolbar { max-width: 595.3pt; margin: 0 auto var(--sp-5); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5); }
+.qdoc-toolbar__hint { flex: 1 1 200px; font: var(--type-body-sm); color: var(--text-muted); }
+.qdoc-fit { display: flex; justify-content: center; }
+
+.qdoc {
+  --qdoc-ink: #1A1A1A;
+  --qdoc-muted: #8A8F8C;
+  --qdoc-rule: #D9DCDA;
+  box-sizing: border-box;
+  width: 595.3pt;
+  min-height: 841.9pt;
+  padding: 33.8pt 50pt 47.8pt;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  color: var(--qdoc-ink);
+  font-family: var(--font-body);
+  font-size: 8.5pt;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--sh-raised);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Header: logo 140pt wide at the top-left; header rule at 100pt. */
+.qdoc__head { box-sizing: border-box; height: 66.2pt; flex: none; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.8pt solid var(--qdoc-rule); }
+.qdoc__logo { display: block; flex: none; width: 140pt; height: auto; margin-top: 1.7pt; }
+.qdoc__heading { text-align: right; }
+.qdoc__title { margin: 14pt 0 0; font: 200 16pt/1 var(--font-body); letter-spacing: 0.02em; text-transform: uppercase; color: var(--qdoc-ink); }
+.qdoc__contact { margin: 14.8pt 0 0; font-size: 8pt; line-height: 1; color: var(--qdoc-muted); display: flex; justify-content: flex-end; gap: 0.6em; }
+
+/* To / Site / Phone and Quote no. / Date / Valid until: 22pt rows, value rules at 138 / 160 / 182pt. */
+.qdoc__fields { flex: none; display: grid; grid-template-columns: 227.6pt 227.7pt; column-gap: 40pt; margin-top: 16pt; }
+.qdoc__field { box-sizing: border-box; height: 22pt; display: grid; grid-template-columns: 40pt minmax(0, 1fr); align-items: end; }
+.qdoc__field--wide { grid-template-columns: 60pt minmax(0, 1fr); }
+.qdoc__label { font-size: 8pt; line-height: 1; color: var(--qdoc-muted); padding-bottom: 2pt; }
+.qdoc__value { min-height: 11pt; font-size: 9pt; line-height: 11pt; padding-bottom: 1pt; border-bottom: 0.5pt solid var(--qdoc-rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Items: bold 8pt header over a 0.8pt ink rule at 236.1pt, then 26pt ruled rows. */
+.qdoc__table { flex: none; width: 100%; border-collapse: collapse; margin-top: 38pt; }
+.qdoc__table thead { display: table-header-group; }
+.qdoc__table th { height: 16pt; padding: 0 0 6pt; font-size: 8pt; font-weight: 700; line-height: 10pt; text-align: left; vertical-align: bottom; color: var(--qdoc-ink); border-bottom: 0.8pt solid var(--qdoc-ink); }
+.qdoc__table td { height: 26pt; padding: 0; vertical-align: middle; border-bottom: 0.5pt solid var(--qdoc-rule); }
+.qdoc__table tr { break-inside: avoid; }
+.qdoc__col-qty { width: 50pt; }
+.qdoc__col-unit { width: 72.9pt; }
+.qdoc__col-rate { width: 46.4pt; }
+.qdoc__col-amount { width: 70.8pt; }
+.qdoc__table .qdoc__num { text-align: right; white-space: nowrap; }
+.qdoc__table .qdoc__unit { padding-left: 17.9pt; white-space: nowrap; }
+.qdoc__table td.qdoc__unit { color: var(--qdoc-muted); }
+.qdoc__desc { padding-right: 8pt !important; overflow-wrap: anywhere; }
+
+/* Total: 180pt wide at the right, bold "Total" over a 0.8pt ink rule. */
+.qdoc__totals { flex: none; align-self: flex-end; width: 180pt; break-inside: avoid; }
+.qdoc__sum { box-sizing: border-box; height: 18pt; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8pt; color: var(--qdoc-muted); }
+.qdoc__total { box-sizing: border-box; height: 36pt; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5.5pt; font-size: 10pt; line-height: 1; border-bottom: 0.8pt solid var(--qdoc-ink); }
+.qdoc__sum + .qdoc__total { height: 24pt; }
+.qdoc__total span:first-child { font-weight: 700; }
+
+/* Not in the blank template: kept small and grey so the page still reads like it. */
+.qdoc__notes { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(160pt, 1fr)); gap: 12pt 40pt; margin-top: 22pt; break-inside: avoid; }
+.qdoc__notes h2 { margin: 0 0 3pt; font: 700 8pt/1.2 var(--font-body); text-transform: none; letter-spacing: 0; color: var(--qdoc-ink); }
+.qdoc__notes p { margin: 0; font-size: 8pt; line-height: 1.45; color: var(--qdoc-muted); white-space: pre-line; }
+
+/* Foot, pinned to the page bottom: 180pt signature rules at 722pt, labels at 735.9pt, "Thank you" at 791.9pt. */
+.qdoc__foot { flex: none; margin-top: auto; padding-top: 24pt; display: flex; flex-wrap: wrap; justify-content: space-between; break-inside: avoid; }
+.qdoc__sign { box-sizing: border-box; width: 180pt; padding-top: 7.7pt; border-top: 0.6pt solid var(--qdoc-ink); font-size: 8pt; line-height: 8pt; color: var(--qdoc-muted); }
+.qdoc__thanks { flex: 1 0 100%; margin: 47.2pt 0 0; text-align: center; font: 200 9pt/9pt var(--font-body); color: var(--qdoc-muted); }
+
+@media print {
+  html, body { background: #FFFFFF !important; }
+  .qdoc-toolbar { display: none !important; }
+  .qdoc-page { padding: 0; background: none; min-height: 0; }
+  .qdoc-fit { display: block; }
+  .qdoc-fit > div { zoom: 1 !important; }
+  /* The @page margins take over the padding; min-height keeps the foot at the page bottom. */
+  .qdoc { width: auto; min-height: 760.3pt; padding: 0; box-shadow: none; }
+}

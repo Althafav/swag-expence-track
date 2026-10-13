@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Building2, Trash2 } from "lucide-react";
+import { LayoutDashboard, FolderOpen, FileText, Building2, Trash2 } from "lucide-react";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import ActionSheet from "./ui/ActionSheet";
@@ -17,6 +17,7 @@ import { COMPANY_LABEL } from "@/lib/categories";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderOpen },
+  { href: "/quotes", label: "Quotes", icon: FileText },
   { href: "/company", label: "Company", icon: Building2 },
   { href: "/bin", label: "Recycle bin", icon: Trash2 },
 ];
@@ -140,9 +141,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div style={{ maxWidth: "var(--container-max)", margin: "0 auto" }}>{children}</div>
         </main>
 
-        <div className="md:hidden" style={{ position: "fixed", bottom: 78, right: 16, zIndex: 40 }}>
-          <IconButton icon="plus" label="Add transaction or project" variant="fab" size="lg" onClick={modals.openActionSheet} />
-        </div>
+        {/* Quote screens have their own sticky save bar where the FAB would sit. */}
+        {!pathname.startsWith("/quotes/") && (
+          <div className="md:hidden" style={{ position: "fixed", bottom: 78, right: 16, zIndex: 40 }}>
+            <IconButton icon="plus" label="Add transaction, project or quote" variant="fab" size="lg" onClick={modals.openActionSheet} />
+          </div>
+        )}
 
         <div className="md:hidden" style={{ position: "fixed", bottom: 0, left: 0, right: 0 }}>
           <nav className="swag-nav">
@@ -162,6 +166,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onLogTransaction={() => modals.openLogTransaction()}
         onCompanyExpense={() => modals.openLogTransaction(COMPANY_REF)}
         onNewProject={modals.openNewProject}
+        onNewQuote={() => router.push("/quotes/new")}
       />
       {sheet?.kind === "tx-view" && (
         <TransactionViewModal
