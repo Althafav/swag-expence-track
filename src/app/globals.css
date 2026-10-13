@@ -712,7 +712,10 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
    The template is set in DejaVu Sans (Regular / Bold / ExtraLight); Inter at
    400 / 700 / 200 is the closest face the app already ships. */
 
-@page { size: A4; margin: 33.8pt 50pt 47.8pt; }
+/* Zero page margin: browsers draw their URL / date / title header and footer
+   inside the page margin, so with none there's nowhere for them to go. The
+   sheet's own padding supplies the template margins instead. */
+@page { size: A4; margin: 0; }
 
 .qdoc-page { min-height: 100vh; background: var(--paper); padding: var(--sp-5) var(--gutter-app) var(--sp-9); }
 .qdoc-toolbar { max-width: 595.3pt; margin: 0 auto var(--sp-5); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5); }
@@ -792,6 +795,8 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
   .qdoc-page { padding: 0; background: none; min-height: 0; }
   .qdoc-fit { display: block; }
   .qdoc-fit > div { zoom: 1 !important; }
-  /* The @page margins take over the padding; min-height keeps the foot at the page bottom. */
-  .qdoc { width: auto; min-height: 760.3pt; padding: 0; box-shadow: none; }
+  /* The sheet keeps its padding as the page margin (cloned onto every page of
+     a long quote); min-height, a hair under A4, pins the foot to the page bottom
+     without spilling onto a blank second page. */
+  .qdoc { width: auto; min-height: 841pt; box-shadow: none; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 }
