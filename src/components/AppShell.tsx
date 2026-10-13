@@ -4,22 +4,30 @@ import React, { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen, FileText, Building2, Trash2 } from "lucide-react";
+import { LayoutDashboard, FolderOpen, FileText, Building2, Trash2, History, Library, Menu } from "lucide-react";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import ActionSheet from "./ui/ActionSheet";
+import NavDrawer, { type DrawerLink } from "./NavDrawer";
 import TransactionFormModal from "./TransactionFormModal";
 import TransactionViewModal from "./TransactionViewModal";
 import ProjectFormModal from "./ProjectFormModal";
 import type { Project, Transaction } from "@/lib/db";
 import { COMPANY_LABEL } from "@/lib/categories";
 
+/** Daily destinations: header on desktop, bottom bar on phones. */
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderOpen },
   { href: "/quotes", label: "Quotes", icon: FileText },
-  { href: "/company", label: "Company", icon: Building2 },
-  { href: "/bin", label: "Recycle bin", icon: Trash2 },
+];
+
+/** Occasional destinations: the drawer behind the logo. */
+const MORE_NAV: DrawerLink[] = [
+  { href: "/company", label: "Company", hint: "Salaries, rent and other business costs", icon: Building2 },
+  { href: "/activity", label: "All transactions", hint: "Every entry, newest first", icon: History },
+  { href: "/quotes/catalogue", label: "Quote catalogue", hint: "Saved lines to reuse in quotes", icon: Library },
+  { href: "/bin", label: "Recycle bin", hint: "Restore deleted items for 30 days", icon: Trash2 },
 ];
 
 /** A project, or COMPANY_REF (id null) for a company entry that belongs to no project. */
@@ -57,10 +65,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sheet, setSheet] = useState<SheetState>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Close the drawer on any navigation, including back/forward
+  // (adjusting state during render, not in an effect).
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  if (drawerPath !== pathname) {
+    setDrawerPath(pathname);
+    setDrawerOpen(false);
+  }
 
   function isActive(href: string) {
-    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+    if (href === "/") return pathname === "/";
+    // The catalogue lives under /quotes but is its own destination.
+    if (href === "/quotes" && pathname.startsWith("/quotes/catalogue")) return false;
+    return pathname.startsWith(href);
   }
+
+  const moreActive = MORE_NAV.some(({ href }) => isActive(href));
 
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
@@ -95,9 +117,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             flex: "none",
           }}
         >
-          <Link href="/"  style={{ display: "flex", alignItems: "center" }}>
-            <Image className="bg-white" src="/swag-logo.png" alt="SWAG Landscapes" width={85} height={44} style={{ height: 44, width: "auto" }} priority />
-          </Link>
+          <button
+            type="button"
+            className={"swag-logo-btn" + (moreActive ? " swag-logo-btn--more" : "")}
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
+            aria-haspopup="dialog"
+          >
+            <Menu size={20} className="swag-logo-btn__glyph" />
+            <Image src="/swag-logo.png" alt="" width={1739} height={904} style={{ height: 44, width: "auto" }} priority />
+          </button>
 
           <nav className="hidden md:flex" style={{ gap: "var(--sp-2)", flex: 1 }}>
             {NAV.map(({ href, label, icon: Icon }) => (
@@ -128,12 +158,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Button variant="primary" size="md" iconLeft="receipt" onClick={() => modals.openLogTransaction()}>
               Log transaction
             </Button>
-            <Button variant="ghost" size="md" iconLeft="log-out" onClick={signOut}>
-              Sign out
-            </Button>
-          </span>
-          <span className="md:hidden">
-            <IconButton icon="log-out" label="Sign out" variant="plain" onClick={signOut} />
           </span>
         </header>
 
@@ -160,6 +184,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
+      <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} links={MORE_NAV} isActive={isActive} onSignOut={signOut} />
       <ActionSheet
         open={sheet?.kind === "actionsheet"}
         onClose={closeSheet}

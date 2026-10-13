@@ -439,6 +439,46 @@ input[type="date"].swag-input::-webkit-calendar-picker-indicator { position: abs
 .swag-nav__item:hover { color: var(--text-body); }
 .swag-nav__item--active { color: var(--ink-900); font-weight: var(--fw-bold); }
 
+/* Header logo = menu trigger. The glyph sits to the left of the wordmark so
+   the logo reads as tappable; a lime dot marks it when the current page
+   lives in the drawer (otherwise no header item would show where you are). */
+.swag-logo-btn { position: relative; display: inline-flex; align-items: center; gap: var(--sp-3); min-height: var(--tap-field); padding: 0 var(--sp-4) 0 var(--sp-3); margin-left: calc(-1 * var(--sp-3)); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-900); cursor: pointer; transition: var(--t-control); }
+.swag-logo-btn:hover { background: var(--surface-sunken); }
+.swag-logo-btn:active { transform: scale(.97); }
+.swag-logo-btn:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+.swag-logo-btn--more::after { content: ""; position: absolute; top: 9px; left: 26px; width: 9px; height: 9px; border-radius: 50%; background: var(--lime-400); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--ink-900); }
+
+/* Nav drawer — slides in from the left over a scrim. Always mounted so it
+   can animate out; `inert` + visibility keep it out of reach when closed. */
+.swag-drawer { position: fixed; inset: 0; z-index: 55; visibility: hidden; transition: visibility 0s linear var(--dur-slow); }
+.swag-drawer--open { visibility: visible; transition-delay: 0s; }
+.swag-drawer__scrim { position: absolute; inset: 0; background: rgba(18, 22, 15, .52); opacity: 0; transition: opacity var(--dur-slow) var(--ease-standard); }
+.swag-drawer--open .swag-drawer__scrim { opacity: 1; }
+.swag-drawer__panel { --mow-stripe: rgba(255, 255, 255, .025); position: absolute; top: 0; bottom: 0; left: 0; width: min(340px, 86vw); display: flex; flex-direction: column; background: var(--ink); color: var(--text-on-dark); border-radius: 0 var(--r-sheet) var(--r-sheet) 0; overflow-y: auto; transform: translateX(-100%); transition: transform var(--dur-slow) var(--ease-standard); padding: max(var(--sp-5), env(safe-area-inset-top)) 0 max(var(--sp-5), env(safe-area-inset-bottom)); }
+.swag-drawer--open .swag-drawer__panel { transform: translateX(0); }
+.swag-drawer__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: 0 var(--sp-4) var(--sp-6) var(--sp-6); }
+.swag-drawer__close { display: inline-flex; align-items: center; justify-content: center; width: var(--tap-field); height: var(--tap-field); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-on-dark-muted); cursor: pointer; transition: var(--t-control); }
+.swag-drawer__close:hover { background: rgba(255, 255, 255, .08); color: var(--text-on-dark); }
+.swag-drawer__close:focus-visible { outline: 2px solid var(--lime-400); outline-offset: -2px; }
+.swag-drawer__nav { display: flex; flex-direction: column; padding: 0 var(--sp-3); }
+.swag-drawer__link { position: relative; display: flex; align-items: center; gap: var(--sp-4); min-height: 64px; padding: var(--sp-3) var(--sp-4); border-radius: var(--r-control); color: var(--text-on-dark); text-decoration: none; transition: background-color var(--dur-fast) var(--ease-standard); }
+.swag-drawer__link:hover { background: rgba(255, 255, 255, .06); color: var(--text-on-dark); }
+.swag-drawer__link:focus-visible { outline: 2px solid var(--lime-400); outline-offset: -2px; }
+.swag-drawer__icon { flex: none; color: var(--text-on-dark-muted); }
+.swag-drawer__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.swag-drawer__label { font: var(--type-title); }
+.swag-drawer__hint { font: var(--type-body-sm); font-size: var(--fs-13); color: var(--text-on-dark-muted); }
+/* Active page: a lime mown strip down the left edge, lime icon. */
+.swag-drawer__link--active { background: rgba(226, 247, 5, .08); }
+.swag-drawer__link--active::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: var(--r-pill); background: var(--lime-400); }
+.swag-drawer__link--active .swag-drawer__icon { color: var(--lime-400); }
+.swag-drawer__signout { display: flex; align-items: center; gap: var(--sp-4); min-height: var(--tap-field); margin: auto var(--sp-3) 0; padding: 0 var(--sp-4); border: 0; border-top: 1px solid var(--border-on-dark); border-radius: 0; background: transparent; color: var(--text-on-dark-muted); font: var(--type-label); text-align: left; cursor: pointer; transition: color var(--dur-fast) var(--ease-standard); }
+.swag-drawer__signout:hover { color: var(--text-on-dark); }
+.swag-drawer__signout:focus-visible { outline: 2px solid var(--lime-400); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .swag-drawer__panel, .swag-drawer__scrim { transition: none; }
+}
+
 /* Modal (accessible: real buttons, Escape, focus trap in JS) */
 .swag-scrim { position: fixed; inset: 0; background: rgba(18, 22, 15, .52); display: flex; align-items: flex-end; justify-content: center; padding: 0; z-index: 60; }
 .swag-modal { background: var(--surface-card); width: 100%; max-width: 520px; border-radius: var(--r-sheet) var(--r-sheet) 0 0; box-shadow: var(--sh-sheet); display: flex; flex-direction: column; max-height: 92%; animation: swag-modal-up var(--dur-sheet) var(--ease-standard); }
